@@ -1,13 +1,12 @@
-# Cloudflare Workers 部署配置 — 后端 API 代理
-# 由于 Spring Boot 需要 JVM 环境，Cloudflare Workers 无法直接运行 Java。
-# 此 Worker 作为反向代理，将 API 请求转发到你的后端服务器。
+# Cloudflare Workers 部署配置 — 后端 API 代理（备用方案）
+# 如果 Pages Functions 不够用，可以单独部署此 Worker。
 #
 # 使用方式:
 #   1. 将后端部署到 Railway / Fly.io / VPS
 #   2. 修改下方 API_BACKEND_URL 为实际地址
 #   3. 部署 Worker:
 #      npm install -g wrangler
-#      cd wrangler && wrangler deploy
+#      wrangler deploy
 #
 # 注意: wrangler.toml 放在仓库根目录，worker.js 在 wrangler/ 子目录中
 

@@ -2,18 +2,16 @@
  * Cloudflare Pages Function — API 反向代理
  *
  * 将 /credit-system/* 的请求转发到后端服务器。
- * 这样就不需要单独部署 Worker，Pages Functions 与站点部署在一起。
+ * Pages Functions 与站点部署在一起，无需单独部署 Worker。
  *
  * 使用方式:
  *   1. 将后端部署到 Railway / Fly.io / VPS
- *   2. 修改下方 API_BACKEND 为后端实际地址
+ *   2. 在 Cloudflare Dashboard 中设置环境变量 API_BACKEND_URL
  *   3. 重新部署 Pages 即可生效
  */
 
-const API_BACKEND = "http://localhost:8080"; // TODO: 改为实际后端地址
-
 export async function onRequest(context) {
-  const { request } = context;
+  const { request, env } = context;
   const url = new URL(request.url);
   const path = url.pathname;
   const method = request.method;
@@ -22,6 +20,9 @@ export async function onRequest(context) {
   if (!path.startsWith("/credit-system/")) {
     return new Response("Not Found", { status: 404 });
   }
+
+  // 从环境变量读取后端地址，部署后在 Cloudflare Dashboard 中设置
+  const API_BACKEND = env.API_BACKEND_URL || "http://localhost:8080";
 
   // 构造后端请求
   const backendUrl = `${API_BACKEND}${path}${url.search}`;
