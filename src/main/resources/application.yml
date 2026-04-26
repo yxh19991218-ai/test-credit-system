@@ -13,9 +13,9 @@ spring:
 
   # 数据库配置
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/credit_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&enabledTLSProtocols=TLSv1.2}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:root123}
+    url: ${DB_URL:jdbc:mysql://${MYSQLHOST:localhost}:${MYSQLPORT:3306}/${MYSQLDATABASE:credit_system}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&enabledTLSProtocols=TLSv1.2}
+    username: ${DB_USERNAME:${MYSQLUSER:root}}
+    password: ${DB_PASSWORD:${MYSQLPASSWORD:root123}}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
     # 连接池配置
