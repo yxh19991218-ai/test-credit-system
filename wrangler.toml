@@ -16,9 +16,7 @@ compatibility_date = "2026-04-26"
 
 # 后端实际地址（部署后修改为真实地址）
 # 例如: https://credit-system-backend.railway.app
-vars = {
-  API_BACKEND_URL = "http://localhost:8080"
-}
+vars = { API_BACKEND_URL = "http://localhost:8080" }
 
 # 路由配置 — 部署后替换为你的域名和 Zone ID
 # routes = [
