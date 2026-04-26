@@ -9,6 +9,7 @@ public class PageRequestDTO {
     private String name;
     private String phone;
     private String idCard;
+    private String keyword;
     private String status;
     private String riskLevel;
 }

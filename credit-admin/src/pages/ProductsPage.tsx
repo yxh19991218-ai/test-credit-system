@@ -3,11 +3,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { productApi, type Product } from "../api/products";
 
+/** 将后端字段名映射到前端期望的字段 */
+function mapProduct(p: any): Product {
+  return productApi.transformResponse(p);
+}
+
 export default function ProductsPage() {
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [form, setForm] = useState({
+    code: "",
     name: "",
     description: "",
     minAmount: 0,
@@ -21,12 +27,32 @@ export default function ProductsPage() {
     queryKey: ["products"],
     queryFn: async () => {
       const res = await productApi.list();
-      return res.data;
+      // 后端返回 Page<LoanProductResponse>，data.data 是 Page 对象，content 是数组
+      const pageData = res.data?.data;
+      if (Array.isArray(pageData)) {
+        return productApi.transformListResponse(pageData);
+      }
+      if (pageData?.content) {
+        return productApi.transformListResponse(pageData.content);
+      }
+      return [];
     },
   });
 
+  /** 将前端表单转为后端 API 请求格式 */
+  const toApiDto = (f: typeof form) => ({
+    productCode: f.code,
+    productName: f.name,
+    productDescription: f.description || undefined,
+    minAmount: f.minAmount,
+    maxAmount: f.maxAmount,
+    minTerm: f.minTerm,
+    maxTerm: f.maxTerm,
+    interestRate: f.interestRate / 100, // 前端显示 5.0 表示 5%，后端存 0.05
+  });
+
   const createMutation = useMutation({
-    mutationFn: (dto: typeof form) => productApi.create(dto),
+    mutationFn: (dto: typeof form) => productApi.create(toApiDto(dto)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       setShowModal(false);
@@ -35,8 +61,8 @@ export default function ProductsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, dto }: { id: number; dto: Partial<typeof form> }) =>
-      productApi.update(id, dto),
+    mutationFn: ({ id, dto }: { id: number; dto: typeof form }) =>
+      productApi.update(id, toApiDto(dto)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       setShowModal(false);
@@ -52,6 +78,7 @@ export default function ProductsPage() {
 
   const resetForm = () => {
     setForm({
+      code: "",
       name: "",
       description: "",
       minAmount: 0,
@@ -66,13 +93,14 @@ export default function ProductsPage() {
   const openEdit = (product: Product) => {
     setEditingProduct(product);
     setForm({
-      name: product.name,
-      description: product.description ?? "",
+      code: product.productCode,
+      name: product.productName,
+      description: product.productDescription ?? "",
       minAmount: product.minAmount,
       maxAmount: product.maxAmount,
       minTerm: product.minTerm,
       maxTerm: product.maxTerm,
-      interestRate: product.interestRate,
+      interestRate: product.interestRate * 100,
     });
     setShowModal(true);
   };
@@ -80,13 +108,13 @@ export default function ProductsPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingProduct) {
-      updateMutation.mutate({ id: editingProduct.id, dto: form });
+      updateMutation.mutate({ id: editingProduct.id, dto: { ...form } });
     } else {
-      createMutation.mutate(form);
+      createMutation.mutate({ ...form });
     }
   };
 
-  const products = data?.data ?? (Array.isArray(data) ? data : []);
+  const products = data ?? [];
 
   return (
     <div className="space-y-6">
@@ -117,7 +145,7 @@ export default function ProductsPage() {
             <div
               key={product.id}
               className={`bg-white rounded-xl shadow-sm border-2 p-6 transition-all hover:shadow-md ${
-                product.active
+                product.status === "ACTIVE"
                   ? "border-emerald-200"
                   : "border-slate-200 opacity-70"
               }`}
@@ -125,22 +153,22 @@ export default function ProductsPage() {
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-800">
-                    {product.name}
+                    {product.productName}
                   </h3>
-                  {product.description && (
+                  {product.productDescription && (
                     <p className="text-sm text-slate-500 mt-1">
-                      {product.description}
+                      {product.productDescription}
                     </p>
                   )}
                 </div>
                 <span
                   className={`text-xs px-2 py-1 rounded-full ${
-                    product.active
+                    product.status === "PUBLISHED"
                       ? "bg-emerald-100 text-emerald-700"
                       : "bg-slate-100 text-slate-600"
                   }`}
                 >
-                  {product.active ? "已发布" : "已下架"}
+                  {product.status === "PUBLISHED" ? "已发布" : "已下架"}
                 </span>
               </div>
 
@@ -148,7 +176,7 @@ export default function ProductsPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">年利率</span>
                   <span className="font-semibold text-emerald-600">
-                    {product.interestRate}%
+                    {(product.interestRate * 100).toFixed(2)}%
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -177,16 +205,16 @@ export default function ProductsPage() {
                   onClick={() =>
                     toggleActiveMutation.mutate({
                       id: product.id,
-                      active: !product.active,
+                      active: product.status !== "PUBLISHED",
                     })
                   }
                   className={`flex-1 text-center text-sm py-1 ${
-                    product.active
+                    product.status === "PUBLISHED"
                       ? "text-amber-600 hover:text-amber-800"
                       : "text-emerald-600 hover:text-emerald-800"
                   }`}
                 >
-                  {product.active ? "下架" : "发布"}
+                  {product.status === "PUBLISHED" ? "下架" : "发布"}
                 </button>
               </div>
             </div>
@@ -202,6 +230,20 @@ export default function ProductsPage() {
               {editingProduct ? "编辑产品" : "新增产品"}
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  产品代码
+                </label>
+                <input
+                  type="text"
+                  value={form.code}
+                  onChange={(e) => setForm({ ...form, code: e.target.value })}
+                  className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 outline-none"
+                  placeholder="例如: LOAN_001"
+                  required
+                  disabled={!!editingProduct}
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                   产品名称

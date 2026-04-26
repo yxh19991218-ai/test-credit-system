@@ -2,6 +2,7 @@ package com.credit.system.notification;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class NotificationService {
 
     private final JavaMailSender mailSender;
 
+    @Autowired(required = false)
     public NotificationService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
@@ -31,6 +33,10 @@ public class NotificationService {
      * @param body    正文
      */
     public void sendEmail(String to, String subject, String body) {
+        if (mailSender == null) {
+            log.warn("邮件服务未配置，跳过发送 - 收件人: {}, 主题: {}", to, subject);
+            return;
+        }
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setTo(to);

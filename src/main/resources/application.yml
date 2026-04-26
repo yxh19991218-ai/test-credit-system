@@ -64,6 +64,17 @@ spring:
     livereload:
       enabled: true
 
+  # 邮件配置 (使用假邮件服务器)
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:25}
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enabled: false
+
 # 应用配置
 app:
   config:
@@ -111,6 +122,12 @@ app:
       edd-workflow:
         enabled: true
 
+    # 安全配置 (JWT)
+    jwt:
+      secret: ${JWT_SECRET:TXpVek16VXpNekV6TXpVek16VXpNekV6TXpVek16VXpNekU9}
+      access-token-expiration: 3600000
+      refresh-token-expiration: 604800000
+
 # 日志配置
 logging:
   level:
@@ -135,6 +152,12 @@ management:
   endpoint:
     health:
       show-details: always
+  health:
+    # 排除未使用的Redis和本地Mail健康检查
+    redis:
+      enabled: false
+    mail:
+      enabled: false
 
 # Swagger配置
 springdoc:
@@ -146,10 +169,3 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
-
-  # 安全配置
-  security:
-    jwt:
-      secret: ${JWT_SECRET:TXpVek16VXpNekV6TXpVek16VXpNekV6TXpVek16VXpNekU9}
-      access-token-expiration: 3600000
-      refresh-token-expiration: 604800000

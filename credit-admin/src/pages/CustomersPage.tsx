@@ -23,7 +23,11 @@ export default function CustomersPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["customers", search],
     queryFn: async () => {
-      const res = await customerApi.list({ name: search, page: 0, size: 100 });
+      const res = await customerApi.list({
+        keyword: search,
+        page: 0,
+        size: 100,
+      });
       return res.data;
     },
   });
@@ -35,6 +39,10 @@ export default function CustomersPage() {
       setShowModal(false);
       resetForm();
     },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.message || "创建失败";
+      alert(msg);
+    },
   });
 
   const updateMutation = useMutation({
@@ -45,16 +53,25 @@ export default function CustomersPage() {
       setShowModal(false);
       resetForm();
     },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.message || "更新失败";
+      alert(msg);
+    },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => customerApi.delete(id, ""),
+    mutationFn: ({ id, reason }: { id: number; reason: string }) =>
+      customerApi.delete(id, reason),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["customers"] }),
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.message || "删除失败";
+      alert(msg);
+    },
   });
 
   const toggleStatusMutation = useMutation({
     mutationFn: ({ id, active }: { id: number; active: boolean }) =>
-      customerApi.updateStatus(id, active ? "ACTIVE" : "INACTIVE", ""),
+      customerApi.updateStatus(id, active ? "NORMAL" : "FROZEN", ""),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["customers"] }),
   });
 
@@ -180,38 +197,60 @@ export default function CustomersPage() {
                   </td>
                   <td className="px-6 py-4">
                     <span
-                      className={`text-xs px-2 py-1 rounded-full ${customer.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}
+                      className={`text-xs px-2 py-1 rounded-full ${
+                        customer.status === "NORMAL"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : customer.status === "DELETED"
+                            ? "bg-gray-100 text-gray-500"
+                            : "bg-red-100 text-red-700"
+                      }`}
                     >
-                      {customer.status === "ACTIVE" ? "正常" : "禁用"}
+                      {customer.status === "NORMAL"
+                        ? "正常"
+                        : customer.status === "DELETED"
+                          ? "已删除"
+                          : "禁用"}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right space-x-2">
                     <button
                       onClick={() => openEdit(customer)}
-                      className="text-blue-600 hover:text-blue-800 text-sm"
+                      className={`text-sm ${customer.status === "DELETED" ? "text-gray-400 cursor-not-allowed" : "text-blue-600 hover:text-blue-800"}`}
+                      disabled={customer.status === "DELETED"}
                     >
                       编辑
                     </button>
-                    <button
-                      onClick={() =>
-                        toggleStatusMutation.mutate({
-                          id: customer.id,
-                          active: customer.status !== "ACTIVE",
-                        })
-                      }
-                      className={`text-sm ${customer.status === "ACTIVE" ? "text-amber-600 hover:text-amber-800" : "text-emerald-600 hover:text-emerald-800"}`}
-                    >
-                      {customer.status === "ACTIVE" ? "禁用" : "启用"}
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (confirm("确定删除该客户？"))
-                          deleteMutation.mutate(customer.id);
-                      }}
-                      className="text-red-600 hover:text-red-800 text-sm"
-                    >
-                      删除
-                    </button>
+                    {customer.status !== "DELETED" && (
+                      <button
+                        onClick={() =>
+                          toggleStatusMutation.mutate({
+                            id: customer.id,
+                            active: customer.status !== "NORMAL",
+                          })
+                        }
+                        className={`text-sm ${customer.status === "NORMAL" ? "text-amber-600 hover:text-amber-800" : "text-emerald-600 hover:text-emerald-800"}`}
+                      >
+                        {customer.status === "NORMAL" ? "禁用" : "启用"}
+                      </button>
+                    )}
+                    {customer.status !== "DELETED" && (
+                      <button
+                        onClick={() => {
+                          if (confirm("确定删除该客户？")) {
+                            const reason = prompt("请输入删除原因：");
+                            if (reason !== null) {
+                              deleteMutation.mutate({
+                                id: customer.id,
+                                reason: reason || "手动删除",
+                              });
+                            }
+                          }
+                        }}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        删除
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))

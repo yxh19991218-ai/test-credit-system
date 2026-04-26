@@ -34,9 +34,9 @@ public class JwtTokenProvider {
     private final long refreshTokenExpirationMs;
 
     public JwtTokenProvider(
-            @Value("${app.security.jwt.secret}") String secret,
-            @Value("${app.security.jwt.access-token-expiration:3600000}") long accessTokenExpirationMs,
-            @Value("${app.security.jwt.refresh-token-expiration:604800000}") long refreshTokenExpirationMs) {
+            @Value("${app.config.jwt.secret}") String secret,
+            @Value("${app.config.jwt.access-token-expiration:3600000}") long accessTokenExpirationMs,
+            @Value("${app.config.jwt.refresh-token-expiration:604800000}") long refreshTokenExpirationMs) {
         this.secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
         this.accessTokenExpirationMs = accessTokenExpirationMs;
         this.refreshTokenExpirationMs = refreshTokenExpirationMs;

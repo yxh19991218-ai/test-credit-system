@@ -243,7 +243,7 @@ class CustomerServiceImplTest {
             Page<Customer> page = new PageImpl<>(Collections.singletonList(sampleCustomer));
             given(customerRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(Pageable.class))).willReturn(page);
 
-            Page<Customer> result = customerService.getCustomerList(null, null, null, null, null, 0, 10);
+            Page<Customer> result = customerService.getCustomerList(null, null, null, null, null, null, 0, 10);
 
             assertThat(result.getContent()).hasSize(1);
             assertThat(result.getContent().get(0).getName()).isEqualTo("张三");

@@ -1,34 +1,40 @@
 package com.credit.system.controller;
 
-import com.credit.system.domain.Customer;
-import com.credit.system.domain.enums.CustomerStatus;
-import com.credit.system.dto.*;
-import com.credit.system.exception.BusinessException;
-import com.credit.system.exception.ResourceNotFoundException;
-import com.credit.system.service.CustomerService;
+import java.util.Collections;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.BDDMockito.given;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import static org.mockito.Mockito.lenient;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import java.math.BigDecimal;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.*;
+import com.credit.system.domain.Customer;
+import com.credit.system.domain.enums.CustomerStatus;
+import com.credit.system.dto.ApiResponse;
+import com.credit.system.dto.CustomerRequest;
+import com.credit.system.dto.CustomerResponse;
+import com.credit.system.dto.CustomerStatusRequest;
+import com.credit.system.dto.PageRequestDTO;
+import com.credit.system.exception.BusinessException;
+import com.credit.system.exception.ResourceNotFoundException;
+import com.credit.system.service.CustomerService;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CustomerController 单元测试")
@@ -111,7 +117,7 @@ class CustomerControllerTest {
         @DisplayName("应返回分页结果")
         void shouldReturnPagedResult() {
             Page<Customer> page = new PageImpl<>(Collections.singletonList(sampleCustomer));
-            given(customerService.getCustomerList(any(), any(), any(), any(), any(), anyInt(), anyInt()))
+            given(customerService.getCustomerList(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), anyInt(), anyInt()))
                     .willReturn(page);
 
             PageRequestDTO dto = new PageRequestDTO();

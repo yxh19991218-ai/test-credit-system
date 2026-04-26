@@ -65,8 +65,8 @@ public class SecurityConfig {
                                 "/credit-system/swagger-ui.html").permitAll()
                         // 静态资源
                         .requestMatchers(HttpMethod.GET, "/", "/index.html", "/*.ico",
-                                "/**/*.css", "/**/*.js", "/**/*.png", "/**/*.jpg",
-                                "/**/*.svg", "/**/*.woff2", "/**/*.woff").permitAll()
+                                "/*.css", "/*.js", "/*.png", "/*.jpg",
+                                "/*.svg", "/*.woff2", "/*.woff").permitAll()
                         // 其他所有请求需要认证
                         .anyRequest().authenticated()
                 )

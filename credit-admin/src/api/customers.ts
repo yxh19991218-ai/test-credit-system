@@ -39,6 +39,7 @@ export const customerApi = {
   list: (params?: {
     name?: string;
     phone?: string;
+    keyword?: string;
     status?: string;
     page?: number;
     size?: number;

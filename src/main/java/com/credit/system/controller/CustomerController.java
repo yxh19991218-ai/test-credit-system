@@ -1,21 +1,35 @@
 package com.credit.system.controller;
 
-import com.credit.system.domain.Customer;
-import com.credit.system.domain.enums.CustomerStatus;
-import com.credit.system.domain.enums.RiskLevel;
-import com.credit.system.dto.*;
-import com.credit.system.exception.BusinessException;
-import com.credit.system.exception.ResourceNotFoundException;
-import com.credit.system.service.CustomerService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
+import com.credit.system.domain.Customer;
+import com.credit.system.domain.enums.CustomerStatus;
+import com.credit.system.domain.enums.RiskLevel;
+import com.credit.system.dto.ApiResponse;
+import com.credit.system.dto.BatchStatusRequest;
+import com.credit.system.dto.CustomerCreditRequest;
+import com.credit.system.dto.CustomerRequest;
+import com.credit.system.dto.CustomerResponse;
+import com.credit.system.dto.CustomerStatusRequest;
+import com.credit.system.dto.PageRequestDTO;
+import com.credit.system.exception.ResourceNotFoundException;
+import com.credit.system.service.CustomerService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/customers")
@@ -78,6 +92,7 @@ public class CustomerController {
 
         Page<Customer> page = customerService.getCustomerList(
                 pageRequest.getName(), pageRequest.getPhone(), pageRequest.getIdCard(),
+                pageRequest.getKeyword(),
                 status, riskLevel, pageRequest.getPage(), pageRequest.getSize());
         Page<CustomerResponse> respPage = page.map(CustomerResponse::from);
         return ResponseEntity.ok(ApiResponse.success(respPage));
@@ -106,7 +121,7 @@ public class CustomerController {
     @Operation(summary = "删除客户（软删除）")
     public ResponseEntity<ApiResponse<String>> deleteCustomer(
             @PathVariable Long id,
-            @RequestParam String reason,
+            @RequestParam(required = false, defaultValue = "手动删除") String reason,
             @RequestParam(defaultValue = "SYSTEM") String operator) {
         customerService.deleteCustomer(id, reason, operator);
         return ResponseEntity.ok(ApiResponse.success("客户已删除"));

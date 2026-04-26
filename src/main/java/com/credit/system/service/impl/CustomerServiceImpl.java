@@ -6,8 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import jakarta.persistence.criteria.Predicate;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +27,8 @@ import com.credit.system.repository.CustomerRepository;
 import com.credit.system.service.CustomerService;
 import com.credit.system.util.IdCardUtil;
 import com.credit.system.web.multipart.MultipartFile;
+
+import jakarta.persistence.criteria.Predicate;
 
 @Service
 @Transactional
@@ -127,6 +127,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     public Page<Customer> getCustomerList(String name, String phone, String idCard,
+                                         String keyword,
                                          CustomerStatus status, RiskLevel riskLevel,
                                          int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size);
@@ -134,14 +135,25 @@ public class CustomerServiceImpl implements CustomerService {
         // 动态条件查询
         Specification<Customer> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            if (name != null && !name.isEmpty()) {
-                predicates.add(cb.like(root.get("name"), "%" + name + "%"));
-            }
-            if (phone != null && !phone.isEmpty()) {
-                predicates.add(cb.like(root.get("phone"), "%" + phone + "%"));
-            }
-            if (idCard != null && !idCard.isEmpty()) {
-                predicates.add(cb.like(root.get("idCard"), "%" + idCard + "%"));
+
+            // 关键字搜索：在 name/phone/idCard 中 OR 模糊匹配
+            if (keyword != null && !keyword.isEmpty()) {
+                String pattern = "%" + keyword + "%";
+                predicates.add(cb.or(
+                    cb.like(root.get("name"), pattern),
+                    cb.like(root.get("phone"), pattern),
+                    cb.like(root.get("idCard"), pattern)
+                ));
+            } else {
+                if (name != null && !name.isEmpty()) {
+                    predicates.add(cb.like(root.get("name"), "%" + name + "%"));
+                }
+                if (phone != null && !phone.isEmpty()) {
+                    predicates.add(cb.like(root.get("phone"), "%" + phone + "%"));
+                }
+                if (idCard != null && !idCard.isEmpty()) {
+                    predicates.add(cb.like(root.get("idCard"), "%" + idCard + "%"));
+                }
             }
             if (status != null) {
                 predicates.add(cb.equal(root.get("status"), status));
@@ -362,6 +374,14 @@ public class CustomerServiceImpl implements CustomerService {
         // 只更新允许修改的字段
         if (details.getName() != null) {
             existing.setName(details.getName());
+        }
+
+        // 身份证号：仅在非空且与原值不同时更新，需检查唯一性
+        if (details.getIdCard() != null && !details.getIdCard().equals(existing.getIdCard())) {
+            if (existsByIdCard(details.getIdCard())) {
+                throw new BusinessException("新身份证号已存在: " + details.getIdCard());
+            }
+            existing.setIdCard(details.getIdCard());
         }
 
         if (details.getPhone() != null && !details.getPhone().equals(existing.getPhone())) {

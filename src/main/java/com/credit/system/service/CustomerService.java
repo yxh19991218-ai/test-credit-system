@@ -1,15 +1,16 @@
 package com.credit.system.service;
 
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.domain.Page;
+
 import com.credit.system.domain.Customer;
 import com.credit.system.domain.CustomerDocument;
 import com.credit.system.domain.enums.CustomerStatus;
 import com.credit.system.domain.enums.DocumentType;
 import com.credit.system.domain.enums.RiskLevel;
 import com.credit.system.web.multipart.MultipartFile;
-import org.springframework.data.domain.Page;
-
-import java.util.List;
-import java.util.Optional;
 
 public interface CustomerService {
 
@@ -24,6 +25,7 @@ public interface CustomerService {
     Optional<Customer> getCustomerByPhone(String phone);
 
     Page<Customer> getCustomerList(String name, String phone, String idCard,
+                                   String keyword,
                                    CustomerStatus status, RiskLevel riskLevel,
                                    int page, int size);
 

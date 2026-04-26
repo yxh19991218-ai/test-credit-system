@@ -5,6 +5,13 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import com.credit.system.domain.enums.CustomerStatus;
+import com.credit.system.domain.enums.RiskLevel;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,14 +28,6 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import com.credit.system.domain.enums.CustomerStatus;
-import com.credit.system.domain.enums.RiskLevel;
-
 import lombok.Data;
 
 @Data
@@ -49,7 +48,7 @@ public class Customer {
     @NotBlank(message = "身份证号不能为空")
     @Pattern(regexp = "(^[1-9]\\d{5}(18|19|([23]\\d))\\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\\d{3}[0-9Xx]$)",
             message = "身份证号格式不正确")
-    @Column(nullable = false, unique = true, length = 18)
+    @Column(name = "id_card", nullable = false, unique = true, length = 18)
     private String idCard;
 
     @NotBlank(message = "手机号不能为空")

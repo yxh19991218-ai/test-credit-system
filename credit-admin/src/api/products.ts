@@ -3,21 +3,22 @@ import apiClient from "./client";
 
 export interface Product {
   id: number;
-  name: string;
-  description: string;
+  productCode: string;
+  productName: string;
+  productDescription: string;
+  status: string;
+  interestRate: number;
   minAmount: number;
   maxAmount: number;
   minTerm: number;
   maxTerm: number;
-  interestRate: number;
-  active: boolean;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface ProductRequest {
-  name: string;
-  description?: string;
+  productCode: string;
+  productName: string;
+  productDescription?: string;
   minAmount: number;
   maxAmount: number;
   minTerm: number;
@@ -49,7 +50,29 @@ export const productApi = {
     ),
 
   toggleActive: (id: number, active: boolean) =>
-    apiClient.patch(`/api/products/${id}/status`, null, {
-      params: { active },
-    }),
+    active
+      ? apiClient.post(`/api/products/${id}/publish`, null, {
+          params: { operator: "ADMIN" },
+        })
+      : apiClient.post(`/api/products/${id}/unpublish`, null, {
+          params: { reason: "manual unpublish", operator: "ADMIN" },
+        }),
+
+  /** 兼容后端返回字段：将 LoanProductResponse 转为前端 Product */
+  transformResponse: (data: any): Product => ({
+    id: data.id,
+    productCode: data.productCode,
+    productName: data.productName,
+    productDescription: data.productDescription ?? "",
+    status: data.status,
+    interestRate: data.interestRate,
+    minAmount: data.minAmount,
+    maxAmount: data.maxAmount,
+    minTerm: data.minTerm,
+    maxTerm: data.maxTerm,
+    createdAt: data.createdAt,
+  }),
+
+  transformListResponse: (data: any[]): Product[] =>
+    (data ?? []).map(productApi.transformResponse),
 };
