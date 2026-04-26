@@ -5,15 +5,35 @@
 # 构建输出目录: dist
 # 根目录: credit-admin
 
+# Cloudflare Pages 部署配置 — 前端静态页面
+# 在 Cloudflare Dashboard 中连接 GitHub 仓库后自动生效
+#
+# 构建命令: npm run build
+# 构建输出目录: credit-admin/dist
+# 根目录: credit-admin
+
 [build]
 command = "npm run build"
-cwd = "/credit-admin"
-output_dir = "/credit-admin/dist"
+root_dir = "credit-admin"
+output_dir = "dist"
 
 [build.environment]
 NODE_VERSION = "20"
 
+# ============================================================
+# 方案一：后端部署到 Railway/Fly.io 等平台
+# 将 /credit-system/* 的 API 请求转发到后端服务器
+# ============================================================
+# [[redirects]]
+# from = "/credit-system/*"
+# to = "https://your-backend.railway.app/credit-system/:splat"
+# status = 200
+
+# ============================================================
+# 方案二：纯前端演示模式（无后端 API）
+# 将所有路径指向 index.html（SPA 路由）
+# ============================================================
 [[redirects]]
-from = "/credit-system/*"
-to = "https://credit-system-api.example.com/credit-system/:splat"
+from = "/*"
+to = "/index.html"
 status = 200
