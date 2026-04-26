@@ -6,8 +6,7 @@
 # 根目录: credit-admin
 
 [build]
-command = "npm run build"
-root_dir = "credit-admin"
+command = "cd credit-admin && npm run build"
 output_dir = "dist"
 
 [build.environment]
