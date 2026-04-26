@@ -7,7 +7,7 @@
 
 [build]
 command = "cd credit-admin && npm install && npm run build"
-output_dir = "dist"
+output_dir = "/credit-admin/dist"
 
 [build.environment]
 NODE_VERSION = "20"

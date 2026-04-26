@@ -7,13 +7,14 @@
  * 3. 可选缓存策略
  */
 
-const API_BACKEND = globalThis.API_BACKEND_URL || "http://localhost:8080";
-
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
+
+    // 从环境变量读取后端地址
+    const API_BACKEND = env.API_BACKEND_URL || "http://localhost:8080";
 
     // 只代理 /credit-system/ 路径
     if (!path.startsWith("/credit-system/")) {
