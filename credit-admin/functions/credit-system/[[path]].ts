@@ -22,7 +22,9 @@ export async function onRequest(context) {
   }
 
   // 从环境变量读取后端地址，部署后在 Cloudflare Dashboard 中设置
-  const API_BACKEND = env.API_BACKEND_URL || "https://test-credit-system-production.up.railway.app";
+  const API_BACKEND =
+    env.API_BACKEND_URL ||
+    "https://test-credit-system-production.up.railway.app";
 
   // 构造后端请求
   const backendUrl = `${API_BACKEND}${path}${url.search}`;
