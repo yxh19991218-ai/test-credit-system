@@ -1,0 +1,25 @@
+# Cloudflare Workers 部署配置 — 后端 API 代理
+# 由于 Spring Boot 需要 JVM 环境，Cloudflare Workers 无法直接运行 Java。
+# 此 Worker 作为反向代理，将 API 请求转发到你的后端服务器。
+#
+# 方案一：如果你有公网服务器部署后端，用此 Worker 做代理 + 缓存
+# 方案二：将后端部署到支持 Java 的云平台（如 Railway, Fly.io, Heroku），再用 Worker 代理
+#
+# 使用方式:
+#   npm install -g wrangler
+#   wrangler deploy
+
+name = "credit-system-api"
+main = "src/worker.js"
+compatibility_date = "2026-04-26"
+
+# 后端实际地址（部署后修改为真实地址）
+# 例如: https://credit-system-backend.railway.app
+vars = {
+  API_BACKEND_URL = "http://localhost:8080"
+}
+
+# 路由配置
+routes = [
+  { pattern = "credit-system-api.example.com/*", zone_id = "<your-zone-id>" }
+]

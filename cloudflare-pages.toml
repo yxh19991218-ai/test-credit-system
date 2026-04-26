@@ -1,0 +1,19 @@
+# Cloudflare Pages 部署配置 — 前端静态页面
+# 在 Cloudflare Dashboard 中连接 GitHub 仓库后自动生效
+#
+# 构建命令: npm run build
+# 构建输出目录: dist
+# 根目录: credit-admin
+
+[build]
+command = "npm run build"
+cwd = "/credit-admin"
+output_dir = "/credit-admin/dist"
+
+[build.environment]
+NODE_VERSION = "20"
+
+[[redirects]]
+from = "/credit-system/*"
+to = "https://credit-system-api.example.com/credit-system/:splat"
+status = 200
