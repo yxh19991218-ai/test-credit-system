@@ -1,0 +1,30 @@
+# === Java / Maven ===
+target/
+*.class
+*.jar
+*.war
+*.log
+logs/
+
+# === IDE ===
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Node / Frontend ===
+credit-admin/node_modules/
+credit-admin/dist/
+credit-admin/.env
+credit-admin/.env.local
+
+# === Environment ===
+.env
+.env.local
+*.env

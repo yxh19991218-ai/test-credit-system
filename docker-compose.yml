@@ -1,0 +1,61 @@
+# ============================================================
+# Credit System — Docker Compose 部署配置
+# ============================================================
+# 使用方式:
+#   docker compose up -d
+#   docker compose down
+# ============================================================
+
+services:
+  # ---- MySQL 数据库 ----
+  mysql:
+    image: mysql:8.0
+    container_name: credit-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: credit_system
+      MYSQL_USER: credit
+      MYSQL_PASSWORD: credit123
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---- 后端 Spring Boot 应用 ----
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: credit-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/credit_system?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: credit
+      SPRING_DATASOURCE_PASSWORD: credit123
+      APP_SECURITY_JWT_SECRET: ${JWT_SECRET:-4a6f686e446f6553656372657456657279566572795365637265744b6579466f724a575453686172696e67}
+    ports:
+      - "8080:8080"
+
+  # ---- 前端 Nginx 应用 ----
+  frontend:
+    build:
+      context: ./credit-admin
+      dockerfile: Dockerfile
+    container_name: credit-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  mysql_data:

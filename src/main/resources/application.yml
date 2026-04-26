@@ -1,0 +1,155 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /credit-system
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 20
+
+spring:
+  application:
+    name: credit-system
+
+  # 数据库配置
+  datasource:
+    url: jdbc:mysql://localhost:3306/credit_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&enabledTLSProtocols=TLSv1.2
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+    # 连接池配置
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 30000
+      connection-timeout: 20000
+      max-lifetime: 1800000
+      pool-name: CreditSystemHikariCP
+      connection-test-query: SELECT 1
+
+  # JPA配置
+  jpa:
+    database: MYSQL
+    database-platform: org.hibernate.dialect.MySQLDialect
+    open-in-view: false
+
+    # 自动生成DDL
+    hibernate:
+      ddl-auto: update
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+
+    # JPA属性
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+
+  # 文件上传配置
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+  # 开发工具配置
+  devtools:
+    restart:
+      enabled: true
+    livereload:
+      enabled: true
+
+# 应用配置
+app:
+  config:
+    # 客户配置
+    customer:
+      min-age: 18
+      max-age: 65
+      max-monthly-income: 500000
+      id-card-retention-years: 10
+
+    # 产品配置
+    product:
+      max-interest-rate: 0.24
+      min-interest-rate: 0.06
+      max-term: 36
+      min-term: 3
+      max-amount: 1000000
+      min-amount: 1000
+      code:
+        prefix: LOAN
+      version:
+        sequence:
+          enabled: true
+
+    # 还款配置
+    repayment:
+      grace-period-days: 3
+      overdue-interest-rate-multiplier: 1.5
+      minimum-payment-amount: 10
+      max-extension-months: 12
+      prepayment-penalty-rate: 0.02
+      date-adjustment-rule: LAST_DAY_OF_MONTH
+
+    # 通知配置
+    notification:
+      customer-creation:
+        enabled: true
+      product-creation:
+        enabled: true
+
+    # 工作流配置
+    workflow:
+      customer-approval:
+        enabled: false
+      edd-workflow:
+        enabled: true
+
+# 日志配置
+logging:
+  level:
+    com.credit.system: DEBUG
+    org.springframework: INFO
+    org.springframework.data: DEBUG
+    org.springframework.transaction: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/credit-system.log
+    max-size: 10MB
+    max-history: 30
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env
+  endpoint:
+    health:
+      show-details: always
+
+# Swagger配置
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+
+  # 安全配置
+  security:
+    jwt:
+      secret: ${JWT_SECRET:TXpVek16VXpNekV6TXpVek16VXpNekV6TXpVek16VXpNekU9}
+      access-token-expiration: 3600000
+      refresh-token-expiration: 604800000
