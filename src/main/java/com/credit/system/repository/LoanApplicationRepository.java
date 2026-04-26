@@ -1,19 +1,22 @@
 package com.credit.system.repository;
 
-import com.credit.system.domain.LoanApplication;
-import com.credit.system.domain.enums.ApplicationStatus;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-public interface LoanApplicationRepository extends JpaRepository<LoanApplication, Long> {
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import com.credit.system.domain.LoanApplication;
+import com.credit.system.domain.enums.ApplicationStatus;
+
+public interface LoanApplicationRepository extends JpaRepository<LoanApplication, Long>,
+        JpaSpecificationExecutor<LoanApplication> {
 
     List<LoanApplication> findByCustomerId(Long customerId);
 

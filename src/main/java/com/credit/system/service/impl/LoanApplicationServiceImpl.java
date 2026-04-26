@@ -1,30 +1,34 @@
 package com.credit.system.service.impl;
 
-import com.credit.system.domain.LoanApplication;
-import com.credit.system.domain.LoanContract;
-import com.credit.system.domain.LoanProduct;
-import com.credit.system.domain.Customer;
-import com.credit.system.domain.RepaymentSchedule;
-import com.credit.system.domain.enums.ApplicationStatus;
-import com.credit.system.domain.enums.ContractStatus;
-import com.credit.system.domain.enums.ProductStatus;
-import com.credit.system.exception.BusinessException;
-import com.credit.system.exception.ResourceNotFoundException;
-import com.credit.system.repository.*;
-import com.credit.system.service.LoanApplicationService;
-import com.credit.system.service.RepaymentScheduleService;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Optional;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Optional;
+import com.credit.system.domain.Customer;
+import com.credit.system.domain.LoanApplication;
+import com.credit.system.domain.LoanContract;
+import com.credit.system.domain.LoanProduct;
+import com.credit.system.domain.enums.ApplicationStatus;
+import com.credit.system.domain.enums.ProductStatus;
+import com.credit.system.exception.BusinessException;
+import com.credit.system.exception.ResourceNotFoundException;
+import com.credit.system.repository.CustomerRepository;
+import com.credit.system.repository.LoanApplicationRepository;
+import com.credit.system.repository.LoanContractRepository;
+import com.credit.system.repository.LoanProductRepository;
+import com.credit.system.service.LoanApplicationService;
+import com.credit.system.service.RepaymentScheduleService;
+
+import jakarta.persistence.criteria.Predicate;
 
 @Service
 @Transactional
@@ -105,7 +109,20 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     @Override
     public Page<LoanApplication> getApplicationList(Long customerId, Long productId,
                                                      ApplicationStatus status, int page, int size) {
-        return applicationRepository.findByCustomerId(customerId, PageRequest.of(page, size));
+        Specification<LoanApplication> spec = (root, query, cb) -> {
+            Predicate predicate = cb.conjunction();
+            if (customerId != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("customerId"), customerId));
+            }
+            if (productId != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("productId"), productId));
+            }
+            if (status != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("status"), status));
+            }
+            return predicate;
+        };
+        return applicationRepository.findAll(spec, PageRequest.of(page, size));
     }
 
     @Override

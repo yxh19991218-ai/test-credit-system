@@ -1,5 +1,17 @@
 package com.credit.system.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.credit.system.domain.LoanApplication;
 import com.credit.system.domain.enums.ApplicationStatus;
 import com.credit.system.dto.ApiResponse;
@@ -8,12 +20,9 @@ import com.credit.system.dto.LoanApplicationRequest;
 import com.credit.system.dto.LoanApplicationResponse;
 import com.credit.system.exception.ResourceNotFoundException;
 import com.credit.system.service.LoanApplicationService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/applications")
@@ -85,7 +94,14 @@ public class LoanApplicationController {
     public ResponseEntity<ApiResponse<String>> reviewApplication(
             @PathVariable Long id,
             @RequestBody ApplicationReviewRequest request) {
-        ApplicationStatus decision = ApplicationStatus.valueOf(request.getDecision());
+        // 兼容前端传值：APPROVE → APPROVED, REJECT → REJECTED
+        String decisionStr = request.getDecision();
+        if ("APPROVE".equals(decisionStr)) {
+            decisionStr = "APPROVED";
+        } else if ("REJECT".equals(decisionStr)) {
+            decisionStr = "REJECTED";
+        }
+        ApplicationStatus decision = ApplicationStatus.valueOf(decisionStr);
         applicationService.reviewApplication(id, decision, request.getReviewer(),
                 request.getComments(), request.getApprovedAmount(),
                 request.getApprovedTerm(), request.getInterestRate());
