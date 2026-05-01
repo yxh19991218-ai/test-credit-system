@@ -1,14 +1,20 @@
 package com.credit.system.service.impl;
 
-import com.credit.system.domain.LoanContract;
+import com.credit.system.audit.AuditLoggable;
 import com.credit.system.domain.LoanApplication;
+import com.credit.system.domain.LoanContract;
+import com.credit.system.domain.LoanProduct;
 import com.credit.system.domain.Customer;
+import com.credit.system.domain.enums.ApplicationStatus;
 import com.credit.system.domain.enums.ContractStatus;
 import com.credit.system.exception.BusinessException;
 import com.credit.system.exception.ResourceNotFoundException;
-import com.credit.system.repository.LoanContractRepository;
+import com.credit.system.event.ContractCreatedEvent;
+import com.credit.system.event.EventBus;
 import com.credit.system.repository.LoanApplicationRepository;
+import com.credit.system.repository.LoanContractRepository;
 import com.credit.system.repository.CustomerRepository;
+import com.credit.system.repository.LoanProductRepository;
 import com.credit.system.service.ContractService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,9 +43,17 @@ public class ContractServiceImpl implements ContractService {
     private LoanApplicationRepository applicationRepository;
 
     @Autowired
+    private LoanProductRepository productRepository;
+
+    @Autowired
     private CustomerRepository customerRepository;
 
+    @Autowired
+    private EventBus eventBus;
+
     @Override
+    @AuditLoggable(operation = "CREATE_CONTRACT", entityType = "LoanContract",
+            description = "创建贷款合同，客户 {0.customerId}")
     public LoanContract createContract(LoanContract contract, String operator) {
         log.info("创建贷款合同，客户ID: {}, 申请ID: {}, 金额: {}", 
                  contract.getCustomerId(), contract.getApplicationId(), contract.getTotalAmount());
@@ -82,6 +96,39 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
+    public LoanContract createContractFromApplication(Long applicationId, String operator) {
+        LoanApplication application = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException("申请不存在，ID: " + applicationId));
+
+        if (application.getStatus() != ApplicationStatus.APPROVED) {
+            throw new BusinessException("仅已审批的申请可以创建合同");
+        }
+
+        Optional<LoanContract> existingContract = contractRepository.findByApplicationId(applicationId);
+        if (existingContract.isPresent()) {
+            return existingContract.get();
+        }
+
+        LoanProduct product = productRepository.findById(application.getProductId())
+                .orElseThrow(() -> new ResourceNotFoundException("产品不存在，ID: " + application.getProductId()));
+
+        LoanContract contract = new LoanContract();
+        contract.setApplicationId(applicationId);
+        contract.setCustomerId(application.getCustomerId());
+        contract.setProductId(application.getProductId());
+        contract.setTotalAmount(application.getApprovedAmount());
+        contract.setTerm(application.getApprovedTerm());
+        contract.setInterestRate(application.getInterestRate());
+        contract.setRepaymentMethod(product.getRepaymentMethod());
+        contract.setStartDate(LocalDate.now());
+        contract.setEndDate(contract.getStartDate().plusMonths(application.getApprovedTerm()));
+
+        LoanContract saved = createContract(contract, operator);
+        eventBus.publish(new ContractCreatedEvent(saved.getId()));
+        return saved;
+    }
+
+    @Override
     public Optional<LoanContract> getContractById(Long id) {
         return contractRepository.findById(id);
     }
@@ -111,6 +158,8 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
+    @AuditLoggable(operation = "SIGN_CONTRACT", entityType = "LoanContract",
+            description = "签署合同 {0}")
     public void signContract(Long id, String signatory, String signatureMethod) {
         LoanContract contract = contractRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("合同不存在，ID: " + id));
@@ -126,6 +175,8 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
+    @AuditLoggable(operation = "TERMINATE_CONTRACT", entityType = "LoanContract",
+            description = "终止合同 {0}")
     public void terminateContract(Long id, String reason, String operator) {
         LoanContract contract = contractRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("合同不存在，ID: " + id));
@@ -138,6 +189,8 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
+    @AuditLoggable(operation = "EXTEND_CONTRACT", entityType = "LoanContract",
+            description = "合同展期 {0} 延长 {1} 个月")
     public void extendContract(Long id, int months, String reason, String operator) {
         LoanContract contract = contractRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("合同不存在，ID: " + id));
@@ -155,6 +208,8 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
+    @AuditLoggable(operation = "SETTLE_CONTRACT", entityType = "LoanContract",
+            description = "结清合同 {0}")
     public void settleContract(Long id) {
         LoanContract contract = contractRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("合同不存在，ID: " + id));

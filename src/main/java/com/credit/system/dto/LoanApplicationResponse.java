@@ -23,7 +23,6 @@ public class LoanApplicationResponse {
     private LocalDateTime submitDate;
     private String reviewer;
     private String reviewComments;
-    private Long contractId;
     private LocalDateTime createdAt;
 
     public static LoanApplicationResponse from(LoanApplication app) {
@@ -43,7 +42,6 @@ public class LoanApplicationResponse {
         r.setSubmitDate(app.getSubmitDate());
         r.setReviewer(app.getReviewer());
         r.setReviewComments(app.getReviewComments());
-        r.setContractId(app.getContractId());
         r.setCreatedAt(app.getCreatedAt());
         return r;
     }

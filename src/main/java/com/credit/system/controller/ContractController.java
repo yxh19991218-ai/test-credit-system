@@ -5,6 +5,7 @@ import com.credit.system.domain.enums.ContractStatus;
 import com.credit.system.dto.ApiResponse;
 import com.credit.system.dto.ContractRequest;
 import com.credit.system.dto.ContractResponse;
+import com.credit.system.dto.mapper.ContractMapper;
 import com.credit.system.exception.ResourceNotFoundException;
 import com.credit.system.service.ContractService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,20 +28,23 @@ public class ContractController {
     @Autowired
     private ContractService contractService;
 
+    @Autowired
+    private ContractMapper contractMapper;
+
     @PostMapping
     @Operation(summary = "创建贷款合同")
     public ResponseEntity<ApiResponse<ContractResponse>> createContract(
             @RequestBody ContractRequest request,
             @RequestParam(defaultValue = "SYSTEM") String operator) {
         LoanContract saved = contractService.createContract(request.toEntity(), operator);
-        return ResponseEntity.ok(ApiResponse.success("合同创建成功", ContractResponse.from(saved)));
+        return ResponseEntity.ok(ApiResponse.success("合同创建成功", contractMapper.toDto(saved)));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "根据ID查询合同")
     public ResponseEntity<ApiResponse<ContractResponse>> getContract(@PathVariable Long id) {
         return contractService.getContractById(id)
-                .map(c -> ResponseEntity.ok(ApiResponse.success(ContractResponse.from(c))))
+                .map(c -> ResponseEntity.ok(ApiResponse.success(contractMapper.toDto(c))))
                 .orElseThrow(() -> new ResourceNotFoundException("合同不存在，ID: " + id));
     }
 
@@ -48,7 +52,7 @@ public class ContractController {
     @Operation(summary = "根据合同号查询")
     public ResponseEntity<ApiResponse<ContractResponse>> getByNo(@PathVariable String contractNo) {
         return contractService.getContractByNo(contractNo)
-                .map(c -> ResponseEntity.ok(ApiResponse.success(ContractResponse.from(c))))
+                .map(c -> ResponseEntity.ok(ApiResponse.success(contractMapper.toDto(c))))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -57,7 +61,7 @@ public class ContractController {
     public ResponseEntity<ApiResponse<ContractResponse>> getByApplication(
             @PathVariable Long applicationId) {
         return contractService.getContractByApplicationId(applicationId)
-                .map(c -> ResponseEntity.ok(ApiResponse.success(ContractResponse.from(c))))
+                .map(c -> ResponseEntity.ok(ApiResponse.success(contractMapper.toDto(c))))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -66,7 +70,7 @@ public class ContractController {
     public ResponseEntity<ApiResponse<List<ContractResponse>>> getByCustomer(
             @PathVariable Long customerId) {
         List<ContractResponse> list = contractService.getContractsByCustomerId(customerId)
-                .stream().map(ContractResponse::from).collect(Collectors.toList());
+                .stream().map(contractMapper::toDto).collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(list));
     }
 
@@ -82,7 +86,7 @@ public class ContractController {
         if (status != null) s = ContractStatus.valueOf(status);
         Page<LoanContract> result = contractService.getContractList(
                 customerId, productId, s, page, size);
-        return ResponseEntity.ok(ApiResponse.success(result.map(ContractResponse::from)));
+        return ResponseEntity.ok(ApiResponse.success(result.map(contractMapper::toDto)));
     }
 
     @PostMapping("/{id}/sign")
@@ -127,7 +131,7 @@ public class ContractController {
     @Operation(summary = "查询逾期合同列表")
     public ResponseEntity<ApiResponse<List<ContractResponse>>> getOverdue() {
         List<ContractResponse> list = contractService.getOverdueContracts()
-                .stream().map(ContractResponse::from).collect(Collectors.toList());
+                .stream().map(contractMapper::toDto).collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(list));
     }
 
@@ -137,7 +141,7 @@ public class ContractController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         List<ContractResponse> list = contractService.getContractsDueBetween(from, to)
-                .stream().map(ContractResponse::from).collect(Collectors.toList());
+                .stream().map(contractMapper::toDto).collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(list));
     }
 }

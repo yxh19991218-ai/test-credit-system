@@ -15,8 +15,6 @@ public interface LoanApplicationService {
 
     Optional<LoanApplication> getApplicationById(Long id);
 
-    Optional<LoanApplication> getApplicationByContractId(Long contractId);
-
     Page<LoanApplication> getApplicationsByCustomerId(Long customerId, int page, int size);
 
     Page<LoanApplication> getApplicationList(Long customerId, Long productId,
@@ -29,6 +27,4 @@ public interface LoanApplicationService {
                            Integer approvedTerm, BigDecimal interestRate);
 
     void cancelApplication(Long id, String reason);
-
-    void approveToContract(Long applicationId, Long contractId);
 }

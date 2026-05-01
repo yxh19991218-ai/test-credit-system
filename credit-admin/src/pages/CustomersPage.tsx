@@ -22,14 +22,12 @@ export default function CustomersPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["customers", search],
-    queryFn: async () => {
-      const res = await customerApi.list({
+    queryFn: () =>
+      customerApi.list({
         keyword: search,
         page: 0,
         size: 100,
-      });
-      return res.data;
-    },
+      }),
   });
 
   const createMutation = useMutation({
@@ -101,8 +99,7 @@ export default function CustomersPage() {
     }
   };
 
-  const pageData = data?.data;
-  const customers = pageData?.content ?? [];
+  const customers = data?.content ?? [];
 
   return (
     <div className="space-y-6">

@@ -1,5 +1,5 @@
 /** 认证相关 API */
-import apiClient from "./client";
+import { request } from "./request";
 
 export interface LoginRequest {
   username: string;
@@ -20,14 +20,8 @@ export interface RefreshRequest {
 
 export const authApi = {
   login: (data: LoginRequest) =>
-    apiClient.post<{ code: number; message: string; data: LoginResponse }>(
-      "/api/auth/login",
-      data,
-    ),
+    request.post<LoginResponse>("/api/auth/login", data),
 
   refresh: (data: RefreshRequest) =>
-    apiClient.post<{ code: number; message: string; data: LoginResponse }>(
-      "/api/auth/refresh",
-      data,
-    ),
+    request.post<LoginResponse>("/api/auth/refresh", data),
 };

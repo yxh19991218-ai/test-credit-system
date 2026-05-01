@@ -34,6 +34,8 @@ import com.credit.system.exception.ResourceNotFoundException;
 import com.credit.system.repository.CustomerRepository;
 import com.credit.system.repository.LoanApplicationRepository;
 import com.credit.system.repository.LoanContractRepository;
+import com.credit.system.repository.LoanProductRepository;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ContractServiceImpl 单元测试")
@@ -46,7 +48,13 @@ class ContractServiceImplTest {
     private LoanApplicationRepository applicationRepository;
 
     @Mock
+    private LoanProductRepository productRepository;
+
+    @Mock
     private CustomerRepository customerRepository;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private ContractServiceImpl contractService;
@@ -54,6 +62,7 @@ class ContractServiceImplTest {
     private LoanContract sampleContract;
     private Customer sampleCustomer;
     private LoanApplication sampleApplication;
+    private com.credit.system.domain.LoanProduct sampleProduct;
 
     @BeforeEach
     void setUp() {
@@ -61,10 +70,18 @@ class ContractServiceImplTest {
         sampleCustomer.setId(1L);
         sampleCustomer.setName("张三");
 
+        sampleProduct = new com.credit.system.domain.LoanProduct();
+        sampleProduct.setId(1L);
+        sampleProduct.setRepaymentMethod(com.credit.system.domain.enums.RepaymentMethod.EQUAL_INSTALLMENT);
+
         sampleApplication = new LoanApplication();
         sampleApplication.setId(1L);
         sampleApplication.setCustomerId(1L);
+        sampleApplication.setProductId(1L);
         sampleApplication.setStatus(ApplicationStatus.APPROVED);
+        sampleApplication.setApprovedAmount(new BigDecimal("100000"));
+        sampleApplication.setApprovedTerm(12);
+        sampleApplication.setInterestRate(new BigDecimal("0.12"));
 
         sampleContract = new LoanContract();
         sampleContract.setId(1L);

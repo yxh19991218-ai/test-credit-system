@@ -25,14 +25,12 @@ export default function ContractsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["contracts", statusFilter],
-    queryFn: async () => {
-      const res = await contractApi.list({
+    queryFn: () =>
+      contractApi.list({
         status: statusFilter,
         page: 0,
         size: 100,
-      });
-      return res.data;
-    },
+      }),
   });
 
   const signMutation = useMutation({
@@ -66,7 +64,7 @@ export default function ContractsPage() {
     }
   };
 
-  const contracts = data?.data?.content ?? [];
+  const contracts = data?.content ?? [];
 
   return (
     <div className="space-y-6">

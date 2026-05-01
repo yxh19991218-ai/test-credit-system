@@ -13,20 +13,22 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.credit.system.audit.AuditLoggable;
 import com.credit.system.domain.Customer;
 import com.credit.system.domain.LoanApplication;
-import com.credit.system.domain.LoanContract;
 import com.credit.system.domain.LoanProduct;
 import com.credit.system.domain.enums.ApplicationStatus;
 import com.credit.system.domain.enums.ProductStatus;
+import com.credit.system.event.ApplicationApprovedEvent;
 import com.credit.system.exception.BusinessException;
 import com.credit.system.exception.ResourceNotFoundException;
 import com.credit.system.repository.CustomerRepository;
 import com.credit.system.repository.LoanApplicationRepository;
-import com.credit.system.repository.LoanContractRepository;
 import com.credit.system.repository.LoanProductRepository;
 import com.credit.system.service.LoanApplicationService;
-import com.credit.system.service.RepaymentScheduleService;
+import com.credit.system.service.calculator.RepaymentCalculator;
+import com.credit.system.service.calculator.RepaymentCalculatorRegistry;
+import com.credit.system.event.EventBus;
 
 import jakarta.persistence.criteria.Predicate;
 
@@ -36,22 +38,29 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
     private static final Logger log = LoggerFactory.getLogger(LoanApplicationServiceImpl.class);
 
-    @Autowired
-    private LoanApplicationRepository applicationRepository;
+    private final LoanApplicationRepository applicationRepository;
+    private final LoanProductRepository productRepository;
+    private final CustomerRepository customerRepository;
+    private final EventBus eventBus;
+    private final RepaymentCalculatorRegistry calculatorRegistry;
 
     @Autowired
-    private LoanProductRepository productRepository;
-
-    @Autowired
-    private CustomerRepository customerRepository;
-
-    @Autowired
-    private LoanContractRepository contractRepository;
-
-    @Autowired
-    private RepaymentScheduleService scheduleService;
+    public LoanApplicationServiceImpl(
+            LoanApplicationRepository applicationRepository,
+            LoanProductRepository productRepository,
+            CustomerRepository customerRepository,
+            EventBus eventBus,
+            RepaymentCalculatorRegistry calculatorRegistry) {
+        this.applicationRepository = applicationRepository;
+        this.productRepository = productRepository;
+        this.customerRepository = customerRepository;
+        this.eventBus = eventBus;
+        this.calculatorRegistry = calculatorRegistry;
+    }
 
     @Override
+    @AuditLoggable(operation = "CREATE_APPLICATION", entityType = "LoanApplication",
+            description = "创建贷款申请，客户 {0.customerId}")
     public LoanApplication createApplication(LoanApplication application, String operator) {
         // 验证客户存在
         Customer customer = customerRepository.findById(application.getCustomerId())
@@ -97,11 +106,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     }
 
     @Override
-    public Optional<LoanApplication> getApplicationByContractId(Long contractId) {
-        return applicationRepository.findByContractId(contractId);
-    }
-
-    @Override
     public Page<LoanApplication> getApplicationsByCustomerId(Long customerId, int page, int size) {
         return applicationRepository.findByCustomerId(customerId, PageRequest.of(page, size));
     }
@@ -126,6 +130,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     }
 
     @Override
+    @AuditLoggable(operation = "SUBMIT_APPLICATION", entityType = "LoanApplication",
+            description = "提交贷款申请 {0}")
     public void submitApplication(Long id) {
         LoanApplication app = applicationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("申请不存在，ID: " + id));
@@ -140,6 +146,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     }
 
     @Override
+    @AuditLoggable(operation = "REVIEW_APPLICATION", entityType = "LoanApplication",
+            description = "审核贷款申请 {0} → {1}")
     public void reviewApplication(Long id, ApplicationStatus decision, String reviewer,
                                   String comments, BigDecimal approvedAmount,
                                   Integer approvedTerm, BigDecimal interestRate) {
@@ -164,9 +172,24 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         }
 
         applicationRepository.save(app);
+
+        if (decision == ApplicationStatus.APPROVED) {
+            eventBus.publish(new ApplicationApprovedEvent(
+                    app.getId(),
+                    app.getCustomerId(),
+                    app.getProductId(),
+                    approvedAmount,
+                    approvedTerm,
+                    interestRate,
+                    reviewer,
+                    app.getReviewDate(),
+                    comments));
+        }
     }
 
     @Override
+    @AuditLoggable(operation = "CANCEL_APPLICATION", entityType = "LoanApplication",
+            description = "取消贷款申请 {0}")
     public void cancelApplication(Long id, String reason) {
         LoanApplication app = applicationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("申请不存在，ID: " + id));
@@ -176,26 +199,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         }
 
         app.setStatus(ApplicationStatus.CANCELLED);
-        applicationRepository.save(app);
-    }
-
-    @Override
-    public void approveToContract(Long applicationId, Long contractId) {
-        LoanApplication app = applicationRepository.findById(applicationId)
-                .orElseThrow(() -> new ResourceNotFoundException("申请不存在"));
-
-        LoanContract contract = contractRepository.findById(contractId)
-                .orElseThrow(() -> new ResourceNotFoundException("合同不存在"));
-
-        if (app.getStatus() != ApplicationStatus.APPROVED) {
-            throw new BusinessException("仅已审批的申请可以生成合同");
-        }
-
-        app.setStatus(ApplicationStatus.COMPLETED);
-        app.setContractId(contract.getId());
-
-        // 生成还款计划
-        scheduleService.generateSchedule(contract.getId());
         applicationRepository.save(app);
     }
 
@@ -230,12 +233,15 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     }
 
     private BigDecimal calculateMonthlyPayment(BigDecimal principal, BigDecimal annualRate, int term) {
-        // 等额本息月供 = P * r * (1+r)^n / ((1+r)^n - 1)
-        double p = principal.doubleValue();
-        double r = annualRate.doubleValue() / 12.0;
-        double n = term;
+        // 使用等额本息计算器计算月供
+        RepaymentCalculator calculator = calculatorRegistry.getCalculator(
+                com.credit.system.domain.enums.RepaymentMethod.EQUAL_INSTALLMENT);
+        BigDecimal monthlyRate = annualRate.divide(BigDecimal.valueOf(12), 10, java.math.RoundingMode.HALF_UP);
+        BigDecimal remaining = principal;
 
-        double monthly = p * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1);
-        return BigDecimal.valueOf(Math.round(monthly * 100.0) / 100.0);
+        // 模拟第 1 期还款，获取月供金额
+        com.credit.system.domain.RepaymentPeriod period = new com.credit.system.domain.RepaymentPeriod();
+        calculator.calculate(period, principal, monthlyRate, term, 1, remaining);
+        return period.getTotalAmount();
     }
 }

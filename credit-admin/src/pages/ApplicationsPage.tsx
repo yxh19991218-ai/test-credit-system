@@ -23,14 +23,12 @@ export default function ApplicationsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["applications", statusFilter],
-    queryFn: async () => {
-      const res = await applicationApi.list({
+    queryFn: () =>
+      applicationApi.list({
         status: statusFilter,
         page: 0,
         size: 100,
-      });
-      return res.data;
-    },
+      }),
   });
 
   const approveMutation = useMutation({
@@ -57,7 +55,7 @@ export default function ApplicationsPage() {
       queryClient.invalidateQueries({ queryKey: ["applications"] }),
   });
 
-  const applications = data?.data?.content ?? [];
+  const applications = data?.content ?? [];
 
   return (
     <div className="space-y-6">

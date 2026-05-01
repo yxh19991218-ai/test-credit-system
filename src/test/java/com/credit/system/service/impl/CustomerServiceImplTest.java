@@ -2,6 +2,7 @@ package com.credit.system.service.impl;
 
 import java.math.BigDecimal;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -14,7 +15,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -30,6 +30,8 @@ import com.credit.system.exception.BusinessException;
 import com.credit.system.exception.ResourceNotFoundException;
 import com.credit.system.repository.CustomerDocumentRepository;
 import com.credit.system.repository.CustomerRepository;
+import com.credit.system.service.specification.CustomerSpecification;
+import com.credit.system.service.specification.SpecificationResult;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CustomerServiceImpl 单元测试")
@@ -41,13 +43,22 @@ class CustomerServiceImplTest {
     @Mock
     private CustomerDocumentRepository documentRepository;
 
-    @InjectMocks
+    @Mock
+    private CustomerSpecification<Customer> mockSpec1;
+
+    @Mock
+    private CustomerSpecification<Customer> mockSpec2;
+
     private CustomerServiceImpl customerService;
 
     private Customer sampleCustomer;
 
     @BeforeEach
     void setUp() {
+        // 使用 mock 规约，不依赖具体规约实现
+        List<CustomerSpecification<Customer>> specs = List.of(mockSpec1, mockSpec2);
+        customerService = new CustomerServiceImpl(customerRepository, documentRepository, specs);
+
         sampleCustomer = new Customer();
         sampleCustomer.setId(1L);
         sampleCustomer.setName("张三");
@@ -67,11 +78,9 @@ class CustomerServiceImplTest {
         @Test
         @DisplayName("应成功创建正常客户")
         void shouldCreateCustomerSuccessfully() {
-            // given
-            given(customerRepository.existsByIdCard(anyString())).willReturn(false);
-            given(customerRepository.existsByPhone(anyString())).willReturn(false);
-            given(customerRepository.existsInBlacklistByIdCard(anyString())).willReturn(false);
-            given(customerRepository.existsInBlacklistByPhone(anyString())).willReturn(false);
+            // given: 所有规约通过
+            given(mockSpec1.isSatisfiedBy(any())).willReturn(SpecificationResult.SATISFIED);
+            given(mockSpec2.isSatisfiedBy(any())).willReturn(SpecificationResult.SATISFIED);
             given(customerRepository.save(any(Customer.class))).willReturn(sampleCustomer);
 
             // when
@@ -86,30 +95,16 @@ class CustomerServiceImplTest {
         }
 
         @Test
-        @DisplayName("身份证重复应抛出异常")
-        void shouldThrowExceptionWhenIdCardExists() {
-            // given
-            given(customerRepository.existsByIdCard(sampleCustomer.getIdCard())).willReturn(true);
+        @DisplayName("规约验证失败应抛出异常")
+        void shouldThrowExceptionWhenSpecificationFails() {
+            // given: 第一个规约失败
+            given(mockSpec1.isSatisfiedBy(any()))
+                    .willReturn(SpecificationResult.unsatisfied("验证失败"));
 
             // when & then
             assertThatThrownBy(() -> customerService.createCustomer(sampleCustomer, null))
                     .isInstanceOf(BusinessException.class)
-                    .hasMessageContaining("身份证号已存在");
-
-            verify(customerRepository, never()).save(any());
-        }
-
-        @Test
-        @DisplayName("手机号重复应抛出异常")
-        void shouldThrowExceptionWhenPhoneExists() {
-            // given
-            given(customerRepository.existsByIdCard(anyString())).willReturn(false);
-            given(customerRepository.existsByPhone(sampleCustomer.getPhone())).willReturn(true);
-
-            // when & then
-            assertThatThrownBy(() -> customerService.createCustomer(sampleCustomer, null))
-                    .isInstanceOf(BusinessException.class)
-                    .hasMessageContaining("手机号已存在");
+                    .hasMessageContaining("验证失败");
 
             verify(customerRepository, never()).save(any());
         }

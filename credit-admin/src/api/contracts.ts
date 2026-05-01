@@ -1,5 +1,5 @@
 /** 合同相关 API */
-import apiClient from "./client";
+import { request, pageGet } from "./request";
 
 export interface Contract {
   id: number;
@@ -41,49 +41,32 @@ export const contractApi = {
     status?: string;
     page?: number;
     size?: number;
-  }) =>
-    apiClient.get<{
-      code: number;
-      message: string;
-      data: {
-        content: Contract[];
-        totalElements: number;
-        totalPages: number;
-        number: number;
-        size: number;
-      };
-    }>("/api/contracts", { params }),
+  }) => pageGet<Contract>("/api/contracts", params),
 
   getById: (id: number) =>
-    apiClient.get<{ code: number; message: string; data: Contract }>(
-      `/api/contracts/${id}`,
-    ),
+    request.get<Contract>(`/api/contracts/${id}`),
 
   create: (data: ContractRequest) =>
-    apiClient.post<{ code: number; message: string; data: Contract }>(
-      "/api/contracts",
-      data,
-    ),
+    request.post<Contract>("/api/contracts", data),
 
-  sign: (id: number, signatory: string, signatureMethod?: string) =>
-    apiClient.post(`/api/contracts/${id}/sign`, null, {
-      params: { signatory, signatureMethod: signatureMethod || "ONLINE" },
+  sign: (id: number, signatory: string, signatureMethod = "ONLINE") =>
+    request.post<string>(`/api/contracts/${id}/sign`, null, {
+      params: { signatory, signatureMethod },
     }),
 
   terminate: (id: number, reason: string) =>
-    apiClient.post(`/api/contracts/${id}/terminate`, null, {
+    request.post<string>(`/api/contracts/${id}/terminate`, null, {
       params: { reason },
     }),
 
   extend: (id: number, months: number, reason: string) =>
-    apiClient.post(`/api/contracts/${id}/extend`, null, {
+    request.post<string>(`/api/contracts/${id}/extend`, null, {
       params: { months, reason },
     }),
 
-  settle: (id: number) => apiClient.post(`/api/contracts/${id}/settle`),
+  settle: (id: number) =>
+    request.post<string>(`/api/contracts/${id}/settle`),
 
   getOverdue: () =>
-    apiClient.get<{ code: number; message: string; data: Contract[] }>(
-      "/api/contracts/overdue",
-    ),
+    request.get<Contract[]>("/api/contracts/overdue"),
 };

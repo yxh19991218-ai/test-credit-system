@@ -105,35 +105,6 @@ class LoanApplicationControllerTest {
     }
 
     @Nested
-    @DisplayName("GET /api/applications/by-contract/{contractId}")
-    class GetByContract {
-
-        @Test
-        @DisplayName("应返回申请信息")
-        void shouldReturnApplication() {
-            given(applicationService.getApplicationByContractId(1L))
-                    .willReturn(Optional.of(sampleApplication));
-
-            ResponseEntity<ApiResponse<LoanApplicationResponse>> response =
-                    applicationController.getByContract(1L);
-
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        }
-
-        @Test
-        @DisplayName("不存在的关联应返回404")
-        void shouldReturn404WhenNotFound() {
-            given(applicationService.getApplicationByContractId(999L))
-                    .willReturn(Optional.empty());
-
-            ResponseEntity<ApiResponse<LoanApplicationResponse>> response =
-                    applicationController.getByContract(999L);
-
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        }
-    }
-
-    @Nested
     @DisplayName("GET /api/applications （分页）")
     class ListApplications {
 
@@ -227,20 +198,5 @@ class LoanApplicationControllerTest {
         }
     }
 
-    @Nested
-    @DisplayName("POST /api/applications/{id}/to-contract/{contractId}")
-    class ApproveToContract {
-
-        @Test
-        @DisplayName("应成功完成申请并返回200")
-        void shouldApproveToContractSuccessfully() {
-            doNothing().when(applicationService).approveToContract(1L, 1L);
-
-            ResponseEntity<ApiResponse<String>> response =
-                    applicationController.approveToContract(1L, 1L);
-
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(response.getBody().getCode()).isEqualTo(200);
-        }
     }
 }

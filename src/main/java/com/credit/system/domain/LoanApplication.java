@@ -83,9 +83,6 @@ public class LoanApplication {
     @Column(name = "review_comments", length = 2000)
     private String reviewComments;
 
-    @Column(name = "contract_id")
-    private Long contractId;
-
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreatedDate
     private LocalDateTime createdAt;

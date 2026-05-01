@@ -24,6 +24,7 @@ import com.credit.system.dto.CustomerRequest;
 import com.credit.system.dto.CustomerResponse;
 import com.credit.system.dto.CustomerStatusRequest;
 import com.credit.system.dto.PageRequestDTO;
+import com.credit.system.dto.mapper.CustomerMapper;
 import com.credit.system.exception.ResourceNotFoundException;
 import com.credit.system.service.CustomerService;
 
@@ -39,19 +40,22 @@ public class CustomerController {
     @Autowired
     private CustomerService customerService;
 
+    @Autowired
+    private CustomerMapper customerMapper;
+
     @PostMapping
     @Operation(summary = "创建客户")
     public ResponseEntity<ApiResponse<CustomerResponse>> createCustomer(@Valid @RequestBody CustomerRequest request) {
         Customer customer = request.toEntity();
         Customer saved = customerService.createCustomer(customer, null);
-        return ResponseEntity.ok(ApiResponse.success("客户创建成功", CustomerResponse.from(saved)));
+        return ResponseEntity.ok(ApiResponse.success("客户创建成功", customerMapper.toDto(saved)));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "根据ID查询客户")
     public ResponseEntity<ApiResponse<CustomerResponse>> getCustomerById(@PathVariable Long id) {
         return customerService.getCustomerById(id)
-                .map(c -> ResponseEntity.ok(ApiResponse.success(CustomerResponse.from(c))))
+                .map(c -> ResponseEntity.ok(ApiResponse.success(customerMapper.toDto(c))))
                 .orElseThrow(() -> new ResourceNotFoundException("客户不存在，ID: " + id));
     }
 
@@ -59,7 +63,7 @@ public class CustomerController {
     @Operation(summary = "根据身份证号查询客户")
     public ResponseEntity<ApiResponse<CustomerResponse>> getCustomerByIdCard(@PathVariable String idCard) {
         return customerService.getCustomerByIdCard(idCard)
-                .map(c -> ResponseEntity.ok(ApiResponse.success(CustomerResponse.from(c))))
+                .map(c -> ResponseEntity.ok(ApiResponse.success(customerMapper.toDto(c))))
                 .orElseThrow(() -> new ResourceNotFoundException("未找到身份证号对应的客户: " + idCard));
     }
 
@@ -67,7 +71,7 @@ public class CustomerController {
     @Operation(summary = "根据手机号查询客户")
     public ResponseEntity<ApiResponse<CustomerResponse>> getCustomerByPhone(@PathVariable String phone) {
         return customerService.getCustomerByPhone(phone)
-                .map(c -> ResponseEntity.ok(ApiResponse.success(CustomerResponse.from(c))))
+                .map(c -> ResponseEntity.ok(ApiResponse.success(customerMapper.toDto(c))))
                 .orElseThrow(() -> new ResourceNotFoundException("未找到手机号对应的客户: " + phone));
     }
 
@@ -79,7 +83,7 @@ public class CustomerController {
             @RequestParam(defaultValue = "SYSTEM") String operator) {
         Customer customer = request.toEntity();
         Customer updated = customerService.updateCustomer(id, customer, operator);
-        return ResponseEntity.ok(ApiResponse.success("客户信息更新成功", CustomerResponse.from(updated)));
+        return ResponseEntity.ok(ApiResponse.success("客户信息更新成功", customerMapper.toDto(updated)));
     }
 
     @GetMapping
@@ -94,7 +98,7 @@ public class CustomerController {
                 pageRequest.getName(), pageRequest.getPhone(), pageRequest.getIdCard(),
                 pageRequest.getKeyword(),
                 status, riskLevel, pageRequest.getPage(), pageRequest.getSize());
-        Page<CustomerResponse> respPage = page.map(CustomerResponse::from);
+        Page<CustomerResponse> respPage = page.map(customerMapper::toDto);
         return ResponseEntity.ok(ApiResponse.success(respPage));
     }
 

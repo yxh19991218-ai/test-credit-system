@@ -1,5 +1,5 @@
 /** 贷款申请相关 API */
-import apiClient from "./client";
+import { request, pageGet } from "./request";
 
 export interface LoanApplication {
   id: number;
@@ -44,37 +44,22 @@ export const applicationApi = {
     status?: string;
     page?: number;
     size?: number;
-  }) =>
-    apiClient.get<{
-      code: number;
-      message: string;
-      data: {
-        content: LoanApplication[];
-        totalElements: number;
-        totalPages: number;
-        number: number;
-        size: number;
-      };
-    }>("/api/applications", { params }),
+  }) => pageGet<LoanApplication>("/api/applications", params),
 
   getById: (id: number) =>
-    apiClient.get<{ code: number; message: string; data: LoanApplication }>(
-      `/api/applications/${id}`,
-    ),
+    request.get<LoanApplication>(`/api/applications/${id}`),
 
   create: (data: ApplicationRequest) =>
-    apiClient.post<{ code: number; message: string; data: LoanApplication }>(
-      "/api/applications",
-      data,
-    ),
+    request.post<LoanApplication>("/api/applications", data),
 
-  submit: (id: number) => apiClient.post(`/api/applications/${id}/submit`),
+  submit: (id: number) =>
+    request.post<string>(`/api/applications/${id}/submit`),
 
   review: (id: number, data: ReviewRequest) =>
-    apiClient.post(`/api/applications/${id}/review`, data),
+    request.post<string>(`/api/applications/${id}/review`, data),
 
   cancel: (id: number, reason: string) =>
-    apiClient.post(`/api/applications/${id}/cancel`, null, {
+    request.post<string>(`/api/applications/${id}/cancel`, null, {
       params: { reason },
     }),
 };

@@ -26,8 +26,6 @@ public interface LoanApplicationRepository extends JpaRepository<LoanApplication
 
     List<LoanApplication> findByStatus(ApplicationStatus status);
 
-    Optional<LoanApplication> findByContractId(Long contractId);
-
     @Query("SELECT a FROM LoanApplication a WHERE a.status = :status ORDER BY a.applicationDate DESC")
     List<LoanApplication> findPendingApplications(@Param("status") ApplicationStatus status);
 

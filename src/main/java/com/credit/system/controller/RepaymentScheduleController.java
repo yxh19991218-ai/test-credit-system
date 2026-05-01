@@ -4,6 +4,7 @@ import com.credit.system.domain.RepaymentPeriod;
 import com.credit.system.domain.RepaymentSchedule;
 import com.credit.system.dto.ApiResponse;
 import com.credit.system.dto.RepaymentScheduleResponse;
+import com.credit.system.dto.mapper.RepaymentScheduleMapper;
 import com.credit.system.exception.ResourceNotFoundException;
 import com.credit.system.service.RepaymentScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,13 +24,16 @@ public class RepaymentScheduleController {
     @Autowired
     private RepaymentScheduleService scheduleService;
 
+    @Autowired
+    private RepaymentScheduleMapper scheduleMapper;
+
     @PostMapping("/generate/{contractId}")
     @Operation(summary = "为合同生成还款计划")
     public ResponseEntity<ApiResponse<RepaymentScheduleResponse>> generateSchedule(
             @PathVariable Long contractId) {
         RepaymentSchedule schedule = scheduleService.generateSchedule(contractId);
         return ResponseEntity.ok(ApiResponse.success("还款计划生成成功",
-                RepaymentScheduleResponse.from(schedule)));
+                scheduleMapper.toDto(schedule)));
     }
 
     @GetMapping("/contract/{contractId}")
@@ -39,7 +43,7 @@ public class RepaymentScheduleController {
         Optional<RepaymentSchedule> schedule =
                 scheduleService.getScheduleByContractIdWithPeriods(contractId);
         return schedule
-                .map(s -> ResponseEntity.ok(ApiResponse.success(RepaymentScheduleResponse.from(s))))
+                .map(s -> ResponseEntity.ok(ApiResponse.success(scheduleMapper.toDto(s))))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -49,7 +53,7 @@ public class RepaymentScheduleController {
             @PathVariable Long scheduleId) {
         RepaymentSchedule schedule = scheduleService.getScheduleByContractIdWithPeriods(scheduleId)
                 .orElseThrow(() -> new ResourceNotFoundException("还款计划不存在"));
-        return ResponseEntity.ok(ApiResponse.success(RepaymentScheduleResponse.from(schedule)));
+        return ResponseEntity.ok(ApiResponse.success(scheduleMapper.toDto(schedule)));
     }
 
     @GetMapping("/{scheduleId}/current-period")
@@ -61,7 +65,7 @@ public class RepaymentScheduleController {
             return ResponseEntity.ok(ApiResponse.success(null));
         }
         return ResponseEntity.ok(ApiResponse.success(
-                RepaymentScheduleResponse.PeriodResponse.from(period)));
+                scheduleMapper.toPeriodDto(period)));
     }
 
     @PostMapping("/{scheduleId}/periods/{periodId}/pay")
@@ -97,7 +101,7 @@ public class RepaymentScheduleController {
     public ResponseEntity<ApiResponse<?>> getPeriods(@PathVariable Long scheduleId) {
         return ResponseEntity.ok(ApiResponse.success(
                 scheduleService.getPeriodsByScheduleId(scheduleId).stream()
-                        .map(RepaymentScheduleResponse.PeriodResponse::from)
+                        .map(scheduleMapper::toPeriodDto)
                         .collect(java.util.stream.Collectors.toList())));
     }
 }

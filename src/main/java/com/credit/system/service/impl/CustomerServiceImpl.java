@@ -15,6 +15,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.credit.system.audit.AuditLoggable;
+import com.credit.system.audit.RequireAdmin;
 import com.credit.system.domain.Customer;
 import com.credit.system.domain.CustomerDocument;
 import com.credit.system.domain.enums.CustomerStatus;
@@ -25,7 +27,8 @@ import com.credit.system.exception.ResourceNotFoundException;
 import com.credit.system.repository.CustomerDocumentRepository;
 import com.credit.system.repository.CustomerRepository;
 import com.credit.system.service.CustomerService;
-import com.credit.system.util.IdCardUtil;
+import com.credit.system.service.specification.CustomerSpecification;
+import com.credit.system.service.specification.SpecificationResult;
 import com.credit.system.web.multipart.MultipartFile;
 
 import jakarta.persistence.criteria.Predicate;
@@ -36,50 +39,56 @@ public class CustomerServiceImpl implements CustomerService {
 
     private static final Logger log = LoggerFactory.getLogger(CustomerServiceImpl.class);
 
-    @Autowired
-    private CustomerRepository customerRepository;
+    private final CustomerRepository customerRepository;
+    private final CustomerDocumentRepository documentRepository;
+    private final CustomerSpecification<Customer> creationSpecification;
 
     @Autowired
-    private CustomerDocumentRepository documentRepository;
+    public CustomerServiceImpl(
+            CustomerRepository customerRepository,
+            CustomerDocumentRepository documentRepository,
+            List<CustomerSpecification<Customer>> specifications) {
+        this.customerRepository = customerRepository;
+        this.documentRepository = documentRepository;
+        // 按验证顺序组合规约
+        this.creationSpecification = specifications.stream()
+                .reduce(CustomerSpecification::and)
+                .orElseThrow(() -> new IllegalStateException("未配置任何客户验证规约"));
+    }
 
     @Override
+    @AuditLoggable(operation = "CREATE_CUSTOMER", entityType = "Customer",
+            description = "创建客户 {0.name}")
     public Customer createCustomer(Customer customer, List<MultipartFile> documents) {
         log.info("创建客户，姓名: {}, 身份证号: {}", customer.getName(), customer.getIdCard());
         
-        // 1. 基础数据验证
-        validateCustomerData(customer);
+        // 1. 执行规约验证链
+        SpecificationResult result = creationSpecification.isSatisfiedBy(customer);
+        if (!result.isSatisfied()) {
+            throw new BusinessException(result.message());
+        }
 
-        // 2. 唯一性检查
-        validateCustomerUniqueness(customer);
-
-        // 3. 年龄验证
-        validateCustomerAge(customer);
-
-        // 4. 黑名单检查
-        checkBlacklist(customer);
-
-        // 5. 设置默认值
+        // 2. 设置默认值
         initializeCustomer(customer);
 
-        // 6. 风险评估
+        // 3. 风险评估
         assessCustomerRisk(customer);
 
-        // 7. 保存客户信息
+        // 4. 保存客户信息
         Customer savedCustomer = customerRepository.save(customer);
         log.info("客户创建成功，ID: {}", savedCustomer.getId());
 
-        // 8. 处理客户文档
+        // 5. 处理客户文档
         if (documents != null && !documents.isEmpty()) {
             processCustomerDocuments(savedCustomer, documents);
         }
-
-        // 9. 记录审计日志
-        auditLog("CREATE_CUSTOMER", savedCustomer.getId(), "创建客户");
 
         return savedCustomer;
     }
 
     @Override
+    @AuditLoggable(operation = "UPDATE_CUSTOMER", entityType = "Customer",
+            description = "更新客户 {1}")
     public Customer updateCustomer(Long id, Customer customerDetails, String operator) {
         log.info("更新客户信息，ID: {}, 操作人: {}", id, operator);
         
@@ -103,9 +112,6 @@ public class CustomerServiceImpl implements CustomerService {
 
         // 4. 保存更新
         Customer updatedCustomer = customerRepository.save(existingCustomer);
-
-        // 5. 记录审计日志
-        auditLog("UPDATE_CUSTOMER", id, "更新客户信息");
 
         return updatedCustomer;
     }
@@ -168,6 +174,8 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    @AuditLoggable(operation = "UPDATE_CUSTOMER_STATUS", entityType = "Customer",
+            description = "更新客户状态 {0} → {1}")
     public void updateCustomerStatus(Long id, CustomerStatus status, String reason, String operator) {
         log.info("更新客户状态，ID: {}, 新状态: {}, 操作人: {}", id, status, operator);
         
@@ -185,8 +193,6 @@ public class CustomerServiceImpl implements CustomerService {
         // 3. 状态变更触发业务
         handleStatusChange(customer, customer.getStatus(), status);
 
-        // 4. 记录审计日志
-        auditLog("UPDATE_STATUS", id, "状态变更: " + status);
     }
 
     @Override
@@ -214,8 +220,6 @@ public class CustomerServiceImpl implements CustomerService {
             assessCustomerRisk(customer);
         }
 
-        // 4. 记录审计日志
-        auditLog("UPDATE_CREDIT_INFO", id, "征信更新");
     }
 
     @Override
@@ -242,6 +246,8 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    @AuditLoggable(operation = "DELETE_CUSTOMER", entityType = "Customer",
+            description = "删除客户 {0}")
     public void deleteCustomer(Long id, String reason, String operator) {
         log.info("删除客户，ID: {}, 原因: {}, 操作人: {}", id, reason, operator);
         
@@ -258,77 +264,24 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setStatusReason("删除原因: " + reason + ", 操作人: " + operator);
         customerRepository.save(customer);
 
-        // 3. 记录删除日志
-        auditLog("DELETE_CUSTOMER", id, "删除客户: " + reason);
     }
 
     @Override
+    @RequireAdmin
+    @AuditLoggable(operation = "BATCH_UPDATE_CUSTOMER_STATUS", entityType = "Customer",
+            description = "批量更新 {0.size} 个客户状态为 {1}")
     public void batchUpdateCustomerStatus(List<Long> customerIds, CustomerStatus status,
                                          String reason, String operator) {
         log.info("批量更新客户状态，客户数量: {}, 新状态: {}, 操作人: {}", 
                  customerIds.size(), status, operator);
-        
-        // 1. 批量操作权限验证
-        validateBatchOperationPermission(operator);
 
-        // 2. 批量状态更新
+        // 批量状态更新
         for (Long customerId : customerIds) {
             try {
                 updateCustomerStatus(customerId, status, reason, operator);
             } catch (Exception e) {
-                // 记录失败日志，继续处理其他客户
-                auditLog("BATCH_UPDATE_FAILED", customerId, "批量状态更新失败: " + e.getMessage());
+                log.warn("批量更新失败，客户ID: {}, 原因: {}", customerId, e.getMessage());
             }
-        }
-
-        // 3. 记录批量操作日志
-        auditLog("BATCH_UPDATE_STATUS", 0L,
-                 "批量更新客户状态: " + customerIds.size() + " 个客户");
-    }
-
-    // 私有验证方法
-    private void validateCustomerData(Customer customer) {
-        // 月收入验证
-        if (customer.getMonthlyIncome() != null && customer.getMonthlyIncome().compareTo(BigDecimal.ZERO) < 0) {
-            throw new BusinessException("月收入不能为负数");
-        }
-
-        // 紧急联系人电话验证
-        if (customer.getEmergencyContactPhone() != null) {
-            if (!customer.getEmergencyContactPhone().matches("^1[3-9]\\d{9}$")) {
-                throw new BusinessException("紧急联系人手机号格式不正确");
-            }
-        }
-    }
-
-    private void validateCustomerUniqueness(Customer customer) {
-        if (existsByIdCard(customer.getIdCard())) {
-            throw new BusinessException("身份证号已存在: " + customer.getIdCard());
-        }
-
-        if (existsByPhone(customer.getPhone())) {
-            throw new BusinessException("手机号已存在: " + customer.getPhone());
-        }
-    }
-
-    private void validateCustomerAge(Customer customer) {
-        int age = IdCardUtil.calculateAge(customer.getIdCard());
-        if (age < 18 || age > 65) {
-            throw new BusinessException(
-                String.format("客户年龄不符合要求：当前年龄%d岁，要求18-65岁", age)
-            );
-        }
-    }
-
-    private void checkBlacklist(Customer customer) {
-        // 检查身份证号是否在黑名单
-        if (customerRepository.existsInBlacklistByIdCard(customer.getIdCard())) {
-            throw new BusinessException("客户身份证号在黑名单中");
-        }
-
-        // 检查手机号是否在黑名单
-        if (customerRepository.existsInBlacklistByPhone(customer.getPhone())) {
-            throw new BusinessException("客户手机号在黑名单中");
         }
     }
 
@@ -414,18 +367,6 @@ public class CustomerServiceImpl implements CustomerService {
         // 限制更新字段
     }
 
-    private void validateBatchOperationPermission(String operator) {
-        // 批量操作需要特殊权限
-        if (!hasBatchOperationPermission(operator)) {
-            throw new BusinessException("没有批量操作权限");
-        }
-    }
-
-    private boolean hasBatchOperationPermission(String operator) {
-        // 权限验证逻辑
-        return "ADMIN".equals(operator) || "SUPER_USER".equals(operator);
-    }
-
     private void validateDocument(MultipartFile file, DocumentType documentType) {
         // 验证文件类型和大小的逻辑
     }
@@ -473,9 +414,5 @@ public class CustomerServiceImpl implements CustomerService {
     private boolean hasActiveLoans(Long customerId) {
         // 检查客户是否有活跃贷款
         return false;
-    }
-
-    private void auditLog(String operation, Long customerId, String details) {
-        // 记录审计日志的实现
     }
 }

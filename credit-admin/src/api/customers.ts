@@ -1,5 +1,5 @@
 /** 客户相关 API */
-import apiClient from "./client";
+import { request, pageGet } from "./request";
 
 export interface Customer {
   id: number;
@@ -27,14 +27,6 @@ export interface CustomerRequest {
   address?: string;
 }
 
-export interface PageResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  number: number;
-  size: number;
-}
-
 export const customerApi = {
   list: (params?: {
     name?: string;
@@ -43,33 +35,20 @@ export const customerApi = {
     status?: string;
     page?: number;
     size?: number;
-  }) =>
-    apiClient.get<{
-      code: number;
-      message: string;
-      data: PageResponse<Customer>;
-    }>("/api/customers", { params }),
+  }) => pageGet<Customer>("/api/customers", params),
 
   getById: (id: number) =>
-    apiClient.get<{ code: number; message: string; data: Customer }>(
-      `/api/customers/${id}`,
-    ),
+    request.get<Customer>(`/api/customers/${id}`),
 
   create: (data: CustomerRequest) =>
-    apiClient.post<{ code: number; message: string; data: Customer }>(
-      "/api/customers",
-      data,
-    ),
+    request.post<Customer>("/api/customers", data),
 
   update: (id: number, data: CustomerRequest) =>
-    apiClient.put<{ code: number; message: string; data: Customer }>(
-      `/api/customers/${id}`,
-      data,
-    ),
+    request.put<Customer>(`/api/customers/${id}`, data),
 
   updateStatus: (id: number, status: string, reason: string) =>
-    apiClient.patch(`/api/customers/${id}/status`, { status, reason }),
+    request.patch<void>(`/api/customers/${id}/status`, { status, reason }),
 
   delete: (id: number, reason: string) =>
-    apiClient.delete(`/api/customers/${id}`, { params: { reason } }),
+    request.delete<void>(`/api/customers/${id}`, { reason }),
 };

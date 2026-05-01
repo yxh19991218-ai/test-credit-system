@@ -39,10 +39,7 @@ function StatCard({
 export default function DashboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard"],
-    queryFn: async () => {
-      const res = await dashboardApi.getOverview();
-      return res.data.data;
-    },
+    queryFn: () => dashboardApi.getOverview(),
   });
 
   if (isLoading) {

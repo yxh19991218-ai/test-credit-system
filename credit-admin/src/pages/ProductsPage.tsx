@@ -3,11 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { productApi, type Product } from "../api/products";
 
-/** 将后端字段名映射到前端期望的字段 */
-function mapProduct(p: any): Product {
-  return productApi.transformResponse(p);
-}
-
 export default function ProductsPage() {
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
@@ -25,18 +20,7 @@ export default function ProductsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["products"],
-    queryFn: async () => {
-      const res = await productApi.list();
-      // 后端返回 Page<LoanProductResponse>，data.data 是 Page 对象，content 是数组
-      const pageData = res.data?.data;
-      if (Array.isArray(pageData)) {
-        return productApi.transformListResponse(pageData);
-      }
-      if (pageData?.content) {
-        return productApi.transformListResponse(pageData.content);
-      }
-      return [];
-    },
+    queryFn: () => productApi.list(),
   });
 
   /** 将前端表单转为后端 API 请求格式 */
@@ -72,7 +56,7 @@ export default function ProductsPage() {
 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, active }: { id: number; active: boolean }) =>
-      productApi.toggleActive(id, active),
+      active ? productApi.publish(id) : productApi.unpublish(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
   });
 

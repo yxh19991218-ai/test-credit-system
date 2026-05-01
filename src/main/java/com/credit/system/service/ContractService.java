@@ -23,6 +23,8 @@ public interface ContractService {
     Page<LoanContract> getContractList(Long customerId, Long productId,
                                         ContractStatus status, int page, int size);
 
+    LoanContract createContractFromApplication(Long applicationId, String operator);
+
     void signContract(Long id, String signatory, String signatureMethod);
 
     void terminateContract(Long id, String reason, String operator);

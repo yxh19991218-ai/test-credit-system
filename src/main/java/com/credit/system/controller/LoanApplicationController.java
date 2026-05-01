@@ -18,6 +18,7 @@ import com.credit.system.dto.ApiResponse;
 import com.credit.system.dto.ApplicationReviewRequest;
 import com.credit.system.dto.LoanApplicationRequest;
 import com.credit.system.dto.LoanApplicationResponse;
+import com.credit.system.dto.mapper.LoanApplicationMapper;
 import com.credit.system.exception.ResourceNotFoundException;
 import com.credit.system.service.LoanApplicationService;
 
@@ -32,30 +33,24 @@ public class LoanApplicationController {
     @Autowired
     private LoanApplicationService applicationService;
 
+    @Autowired
+    private LoanApplicationMapper applicationMapper;
+
     @PostMapping
     @Operation(summary = "创建贷款申请")
     public ResponseEntity<ApiResponse<LoanApplicationResponse>> createApplication(
             @RequestBody LoanApplicationRequest request,
             @RequestParam(defaultValue = "SYSTEM") String operator) {
         LoanApplication saved = applicationService.createApplication(request.toEntity(), operator);
-        return ResponseEntity.ok(ApiResponse.success("申请创建成功", LoanApplicationResponse.from(saved)));
+        return ResponseEntity.ok(ApiResponse.success("申请创建成功", applicationMapper.toDto(saved)));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "根据ID查询申请")
     public ResponseEntity<ApiResponse<LoanApplicationResponse>> getApplication(@PathVariable Long id) {
         return applicationService.getApplicationById(id)
-                .map(a -> ResponseEntity.ok(ApiResponse.success(LoanApplicationResponse.from(a))))
+                .map(a -> ResponseEntity.ok(ApiResponse.success(applicationMapper.toDto(a))))
                 .orElseThrow(() -> new ResourceNotFoundException("申请不存在，ID: " + id));
-    }
-
-    @GetMapping("/by-contract/{contractId}")
-    @Operation(summary = "根据合同ID查询申请")
-    public ResponseEntity<ApiResponse<LoanApplicationResponse>> getByContract(
-            @PathVariable Long contractId) {
-        return applicationService.getApplicationByContractId(contractId)
-                .map(a -> ResponseEntity.ok(ApiResponse.success(LoanApplicationResponse.from(a))))
-                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping
@@ -70,7 +65,7 @@ public class LoanApplicationController {
         if (status != null) s = ApplicationStatus.valueOf(status);
         Page<LoanApplication> result = applicationService.getApplicationList(
                 customerId, productId, s, page, size);
-        return ResponseEntity.ok(ApiResponse.success(result.map(LoanApplicationResponse::from)));
+        return ResponseEntity.ok(ApiResponse.success(result.map(applicationMapper::toDto)));
     }
 
     @PutMapping("/{id}")
@@ -79,7 +74,7 @@ public class LoanApplicationController {
             @PathVariable Long id,
             @RequestBody LoanApplicationRequest request) {
         LoanApplication updated = applicationService.updateApplication(id, request.toEntity());
-        return ResponseEntity.ok(ApiResponse.success(LoanApplicationResponse.from(updated)));
+        return ResponseEntity.ok(ApiResponse.success(applicationMapper.toDto(updated)));
     }
 
     @PostMapping("/{id}/submit")
@@ -115,14 +110,5 @@ public class LoanApplicationController {
             @RequestParam String reason) {
         applicationService.cancelApplication(id, reason);
         return ResponseEntity.ok(ApiResponse.success("申请已取消"));
-    }
-
-    @PostMapping("/{id}/to-contract/{contractId}")
-    @Operation(summary = "审批通过后生成合同（完成申请流程）")
-    public ResponseEntity<ApiResponse<String>> approveToContract(
-            @PathVariable Long id,
-            @PathVariable Long contractId) {
-        applicationService.approveToContract(id, contractId);
-        return ResponseEntity.ok(ApiResponse.success("申请已完成并关联合同"));
     }
 }

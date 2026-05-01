@@ -5,6 +5,7 @@ import com.credit.system.domain.enums.ProductStatus;
 import com.credit.system.dto.ApiResponse;
 import com.credit.system.dto.LoanProductRequest;
 import com.credit.system.dto.LoanProductResponse;
+import com.credit.system.dto.mapper.LoanProductMapper;
 import com.credit.system.service.LoanProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,20 +25,23 @@ public class LoanProductController {
     @Autowired
     private LoanProductService productService;
 
+    @Autowired
+    private LoanProductMapper productMapper;
+
     @PostMapping
     @Operation(summary = "创建贷款产品")
     public ResponseEntity<ApiResponse<LoanProductResponse>> createProduct(
             @RequestBody LoanProductRequest request,
             @RequestParam(defaultValue = "SYSTEM") String operator) {
         LoanProduct saved = productService.createProduct(request.toEntity(), operator);
-        return ResponseEntity.ok(ApiResponse.success("产品创建成功", LoanProductResponse.from(saved)));
+        return ResponseEntity.ok(ApiResponse.success("产品创建成功", productMapper.toDto(saved)));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "根据ID查询产品")
     public ResponseEntity<ApiResponse<LoanProductResponse>> getProductById(@PathVariable Long id) {
         return productService.getProductById(id)
-                .map(p -> ResponseEntity.ok(ApiResponse.success(LoanProductResponse.from(p))))
+                .map(p -> ResponseEntity.ok(ApiResponse.success(productMapper.toDto(p))))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -46,7 +50,7 @@ public class LoanProductController {
     public ResponseEntity<ApiResponse<LoanProductResponse>> getProductByCode(
             @PathVariable String productCode) {
         return productService.getProductByCode(productCode)
-                .map(p -> ResponseEntity.ok(ApiResponse.success(LoanProductResponse.from(p))))
+                .map(p -> ResponseEntity.ok(ApiResponse.success(productMapper.toDto(p))))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -61,7 +65,7 @@ public class LoanProductController {
         ProductStatus ps = null;
         if (status != null) ps = ProductStatus.valueOf(status);
         Page<LoanProduct> p = productService.getProductList(name, code, ps, page, size);
-        return ResponseEntity.ok(ApiResponse.success(p.map(LoanProductResponse::from)));
+        return ResponseEntity.ok(ApiResponse.success(p.map(productMapper::toDto)));
     }
 
     @GetMapping("/eligible/{customerId}")
@@ -70,7 +74,7 @@ public class LoanProductController {
             @PathVariable Long customerId) {
         List<LoanProduct> products = productService.getEligibleProductsForCustomer(customerId);
         List<LoanProductResponse> resp = products.stream()
-                .map(LoanProductResponse::from).collect(Collectors.toList());
+                .map(productMapper::toDto).collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(resp));
     }
 
@@ -81,7 +85,7 @@ public class LoanProductController {
             @RequestBody LoanProductRequest request,
             @RequestParam(defaultValue = "SYSTEM") String operator) {
         LoanProduct updated = productService.updateProduct(id, request.toEntity(), operator);
-        return ResponseEntity.ok(ApiResponse.success(LoanProductResponse.from(updated)));
+        return ResponseEntity.ok(ApiResponse.success(productMapper.toDto(updated)));
     }
 
     @PostMapping("/{id}/publish")
