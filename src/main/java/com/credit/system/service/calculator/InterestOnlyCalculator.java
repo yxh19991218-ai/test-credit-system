@@ -1,11 +1,12 @@
 package com.credit.system.service.calculator;
 
-import com.credit.system.domain.RepaymentPeriod;
-import com.credit.system.domain.enums.RepaymentMethod;
-import org.springframework.stereotype.Component;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+
+import org.springframework.stereotype.Component;
+
+import com.credit.system.domain.RepaymentPeriod;
+import com.credit.system.domain.enums.RepaymentMethod;
 
 /**
  * 先息后本还款计算器。
@@ -28,7 +29,7 @@ public class InterestOnlyCalculator implements RepaymentCalculator {
                           int term,
                           int periodNo,
                           BigDecimal remaining) {
-        BigDecimal interest = principal.multiply(monthlyRate).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal interest = principal.multiply(monthlyRate).setScale(2, RoundingMode.HALF_EVEN);
 
         if (periodNo < term) {
             period.setTotalAmount(interest);

@@ -1,16 +1,18 @@
 package com.credit.system.service.calculator;
 
-import com.credit.system.domain.RepaymentPeriod;
-import com.credit.system.domain.enums.RepaymentMethod;
-import org.springframework.stereotype.Component;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+
+import org.springframework.stereotype.Component;
+
+import com.credit.system.domain.RepaymentPeriod;
+import com.credit.system.domain.enums.RepaymentMethod;
 
 /**
  * 等额本息还款计算器。
  * <p>
  * 每月还款额固定 = P * r * (1+r)^n / ((1+r)^n - 1)。
+ * 全程 {@link BigDecimal} 精确计算，使用 {@link BigDecimalMath#monthlyPayment}。
  * 最后 1 期修正余差。
  * </p>
  */
@@ -29,20 +31,16 @@ public class EqualInstallmentCalculator implements RepaymentCalculator {
                           int term,
                           int periodNo,
                           BigDecimal remaining) {
-        double p = principal.doubleValue();
-        double r = monthlyRate.doubleValue();
-        double n = term;
-
-        double monthlyPayment = p * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1);
-        BigDecimal monthly = BigDecimal.valueOf(monthlyPayment).setScale(2, RoundingMode.HALF_UP);
+        // 精确计算月供（全程 BigDecimal，无 double 转换）
+        BigDecimal monthly = BigDecimalMath.monthlyPayment(principal, monthlyRate, term);
 
         // 最后 1 期修正余差
         if (periodNo == term) {
             monthly = remaining.add(remaining.multiply(monthlyRate))
-                    .setScale(2, RoundingMode.HALF_UP);
+                    .setScale(2, RoundingMode.HALF_EVEN);
         }
 
-        BigDecimal interest = remaining.multiply(monthlyRate).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal interest = remaining.multiply(monthlyRate).setScale(2, RoundingMode.HALF_EVEN);
         BigDecimal principalPart = monthly.subtract(interest);
         if (principalPart.compareTo(BigDecimal.ZERO) < 0) principalPart = BigDecimal.ZERO;
 

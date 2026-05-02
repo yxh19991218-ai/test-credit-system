@@ -1,11 +1,12 @@
 package com.credit.system.service.calculator;
 
-import com.credit.system.domain.RepaymentPeriod;
-import com.credit.system.domain.enums.RepaymentMethod;
-import org.springframework.stereotype.Component;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+
+import org.springframework.stereotype.Component;
+
+import com.credit.system.domain.RepaymentPeriod;
+import com.credit.system.domain.enums.RepaymentMethod;
 
 /**
  * 到期一次性还本付息计算器。
@@ -38,7 +39,7 @@ public class DueOneTimeCalculator implements RepaymentCalculator {
             BigDecimal annualRate = monthlyRate.multiply(BigDecimal.valueOf(12));
             BigDecimal totalInterest = principal.multiply(annualRate)
                     .multiply(BigDecimal.valueOf(term))
-                    .divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
+                    .divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_EVEN);
             period.setTotalAmount(principal.add(totalInterest));
             period.setPrincipal(principal);
             period.setInterest(totalInterest);
