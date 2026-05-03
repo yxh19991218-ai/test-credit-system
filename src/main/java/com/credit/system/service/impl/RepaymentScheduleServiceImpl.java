@@ -3,9 +3,11 @@ package com.credit.system.service.impl;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -253,5 +255,85 @@ public class RepaymentScheduleServiceImpl implements RepaymentScheduleService {
         return amount.multiply(dailyRate)
                 .multiply(BigDecimal.valueOf(overdueDays))
                 .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    @Override
+    public RepaymentSchedule changeInterestRate(Long contractId, BigDecimal newRate, String reason, String operator) {
+        RepaymentSchedule oldSchedule = scheduleRepository.findActiveByContractId(contractId)
+                .orElseThrow(() -> new BusinessException("还款计划不存在或已挂起"));
+
+        List<RepaymentPeriod> allPeriods = periodRepository.findByScheduleIdOrderByPeriodNoAsc(oldSchedule.getId());
+        List<RepaymentPeriod> paidPeriods = allPeriods.stream()
+                .filter(p -> p.getStatus() == RepaymentPeriodStatus.PAID || p.getStatus() == RepaymentPeriodStatus.PARTIAL)
+                .collect(Collectors.toList());
+
+        int paidCount = paidPeriods.size();
+        BigDecimal paidPrincipal = paidPeriods.stream()
+                .map(RepaymentPeriod::getPrincipal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal remainingPrincipal = oldSchedule.getPrincipal().subtract(paidPrincipal);
+        int remainingTerms = allPeriods.size() - paidCount;
+
+        if (remainingTerms <= 0) {
+            throw new BusinessException("合同已全部还清，无需变更利率");
+        }
+
+        LoanContract contract = contractRepository.findById(contractId)
+                .orElseThrow(() -> new ResourceNotFoundException("合同不存在"));
+
+        LocalDate nextStartDate = paidCount > 0
+                ? paidPeriods.get(paidCount - 1).getDueDate()
+                : oldSchedule.getStartDate();
+
+        RepaymentSchedule newSchedule = generateSchedule(
+                contractId, remainingPrincipal, newRate, remainingTerms,
+                contract.getRepaymentMethod().name(), nextStartDate);
+
+        // Adjust period numbers and due dates for future periods
+        List<RepaymentPeriod> generatedPeriods = new ArrayList<>(newSchedule.getPeriods());
+        for (int i = 0; i < generatedPeriods.size(); i++) {
+            RepaymentPeriod p = generatedPeriods.get(i);
+            p.setPeriodNo(paidCount + i + 1);
+            p.setDueDate(oldSchedule.getStartDate().plusMonths(paidCount + i + 1));
+        }
+
+        // Copy paid periods as new entities
+        List<RepaymentPeriod> paidCopies = new ArrayList<>();
+        for (RepaymentPeriod p : paidPeriods) {
+            RepaymentPeriod copy = new RepaymentPeriod();
+            copy.setPeriodNo(p.getPeriodNo());
+            copy.setDueDate(p.getDueDate());
+            copy.setTotalAmount(p.getTotalAmount());
+            copy.setPrincipal(p.getPrincipal());
+            copy.setInterest(p.getInterest());
+            copy.setRemainingPrincipal(p.getRemainingPrincipal());
+            copy.setStatus(p.getStatus());
+            copy.setPaidDate(p.getPaidDate());
+            copy.setPaidAmount(p.getPaidAmount());
+            copy.setOverdueDays(p.getOverdueDays());
+            copy.setOverdueFine(p.getOverdueFine());
+            copy.setSchedule(newSchedule);
+            paidCopies.add(copy);
+        }
+
+        // Prepend paid copies to the new schedule's periods
+        newSchedule.getPeriods().addAll(0, paidCopies);
+
+        // Update new schedule metadata
+        newSchedule.setTerm(oldSchedule.getTerm());
+        newSchedule.setTotalPeriods(oldSchedule.getTerm());
+        newSchedule.setPreviousVersionId(oldSchedule.getId());
+        newSchedule.setModificationType("INTEREST_RATE_CHANGE");
+        newSchedule.setModificationReason(reason);
+        newSchedule.setModifiedBy(operator);
+        newSchedule.setModifiedAt(LocalDateTime.now());
+
+        // Mark old schedule as SUSPENDED
+        oldSchedule.setStatus(ScheduleStatus.SUSPENDED);
+
+        scheduleRepository.save(oldSchedule);
+        scheduleRepository.save(newSchedule);
+
+        return newSchedule;
     }
 }

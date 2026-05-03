@@ -64,7 +64,7 @@ public class CustomerServiceImpl implements CustomerService {
         
         // 1. 执行规约验证链
         SpecificationResult result = creationSpecification.isSatisfiedBy(customer);
-        if (!result.isSatisfied()) {
+        if (!result.satisfied()) {
             throw new BusinessException(result.message());
         }
 

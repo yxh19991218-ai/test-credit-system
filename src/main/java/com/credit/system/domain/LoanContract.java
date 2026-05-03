@@ -75,6 +75,9 @@ public class LoanContract {
     @Column(name = "termination_reason", length = 500)
     private String terminationReason;
 
+    @Column(name = "latest_rate_change_id")
+    private Long latestRateChangeId;
+
     @Column(name = "extended_months", columnDefinition = "int default 0")
     private Integer extendedMonths;
 

@@ -2,6 +2,7 @@ package com.credit.system.service;
 
 import com.credit.system.domain.LoanContract;
 import com.credit.system.domain.enums.ContractStatus;
+import com.credit.system.dto.InterestRateChangeRequest;
 import org.springframework.data.domain.Page;
 
 import java.time.LocalDate;
@@ -36,4 +37,6 @@ public interface ContractService {
     List<LoanContract> getOverdueContracts();
 
     List<LoanContract> getContractsDueBetween(LocalDate from, LocalDate to);
+
+    LoanContract changeInterestRate(Long contractId, InterestRateChangeRequest request, String operator);
 }

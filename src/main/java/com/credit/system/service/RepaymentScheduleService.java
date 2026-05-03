@@ -31,4 +31,6 @@ public interface RepaymentScheduleService {
     void markOverduePeriods();
 
     void modifySchedule(Long scheduleId, int newTerm, String reason, String operator);
+
+    RepaymentSchedule changeInterestRate(Long contractId, BigDecimal newRate, String reason, String operator);
 }

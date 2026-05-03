@@ -27,7 +27,7 @@ public interface CustomerSpecification<T extends Customer> {
     default CustomerSpecification<T> and(CustomerSpecification<T> other) {
         return customer -> {
             SpecificationResult thisResult = this.isSatisfiedBy(customer);
-            if (!thisResult.isSatisfied()) {
+            if (!thisResult.satisfied()) {
                 return thisResult;
             }
             return other.isSatisfiedBy(customer);

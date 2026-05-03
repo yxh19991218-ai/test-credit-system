@@ -1,21 +1,28 @@
 package com.credit.system.service.impl;
 
 import com.credit.system.audit.AuditLoggable;
+import com.credit.system.domain.InterestRateChangeLog;
 import com.credit.system.domain.LoanApplication;
 import com.credit.system.domain.LoanContract;
 import com.credit.system.domain.LoanProduct;
 import com.credit.system.domain.Customer;
 import com.credit.system.domain.enums.ApplicationStatus;
 import com.credit.system.domain.enums.ContractStatus;
+import com.credit.system.domain.enums.RateChangeType;
+import com.credit.system.dto.InterestRateChangeRequest;
 import com.credit.system.exception.BusinessException;
 import com.credit.system.exception.ResourceNotFoundException;
 import com.credit.system.event.ContractCreatedEvent;
 import com.credit.system.event.EventBus;
+import com.credit.system.event.InterestRateChangedEvent;
+import com.credit.system.repository.InterestRateChangeLogRepository;
 import com.credit.system.repository.LoanApplicationRepository;
 import com.credit.system.repository.LoanContractRepository;
 import com.credit.system.repository.CustomerRepository;
 import com.credit.system.repository.LoanProductRepository;
 import com.credit.system.service.ContractService;
+
+import java.math.BigDecimal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +57,9 @@ public class ContractServiceImpl implements ContractService {
 
     @Autowired
     private EventBus eventBus;
+
+    @Autowired
+    private InterestRateChangeLogRepository rateChangeLogRepository;
 
     @Override
     @AuditLoggable(operation = "CREATE_CONTRACT", entityType = "LoanContract",
@@ -231,6 +241,68 @@ public class ContractServiceImpl implements ContractService {
     @Override
     public List<LoanContract> getContractsDueBetween(LocalDate from, LocalDate to) {
         return contractRepository.findContractsDueBetween(from, to);
+    }
+
+    @Override
+    @AuditLoggable(operation = "CHANGE_INTEREST_RATE", entityType = "LoanContract",
+            description = "合同利率变更 {0}")
+    @Transactional
+    public LoanContract changeInterestRate(Long contractId, InterestRateChangeRequest request, String operator) {
+        log.info("合同利率变更，合同ID: {}, 新利率: {}, 操作人: {}", contractId, request.getNewRate(), operator);
+
+        LoanContract contract = contractRepository.findById(contractId)
+                .orElseThrow(() -> new ResourceNotFoundException("合同不存在，ID: " + contractId));
+
+        if (contract.getStatus() != ContractStatus.ACTIVE && contract.getStatus() != ContractStatus.OVERDUE) {
+            throw new BusinessException("仅活跃或逾期合同可以变更利率");
+        }
+
+        LoanApplication application = applicationRepository.findById(contract.getApplicationId())
+                .orElseThrow(() -> new ResourceNotFoundException("申请不存在，ID: " + contract.getApplicationId()));
+
+        LoanProduct product = productRepository.findById(contract.getProductId())
+                .orElseThrow(() -> new ResourceNotFoundException("产品不存在，ID: " + contract.getProductId()));
+
+        BigDecimal newRate = request.getNewRate();
+        if (product.getMinInterestRate() != null && newRate.compareTo(product.getMinInterestRate()) < 0) {
+            throw new BusinessException("新利率低于产品最低利率 " + product.getMinInterestRate());
+        }
+        if (product.getMaxInterestRate() != null && newRate.compareTo(product.getMaxInterestRate()) > 0) {
+            throw new BusinessException("新利率高于产品最高利率 " + product.getMaxInterestRate());
+        }
+
+        LocalDateTime oneYearAgo = LocalDateTime.now().minusYears(1);
+        long changeCount = rateChangeLogRepository.countByContractIdSince(contractId, oneYearAgo);
+        if (changeCount > 0) {
+            throw new BusinessException("该合同一年内已变更过利率");
+        }
+
+        BigDecimal oldRate = contract.getInterestRate();
+
+        InterestRateChangeLog logEntry = new InterestRateChangeLog();
+        logEntry.setContractId(contractId);
+        logEntry.setApplicationId(contract.getApplicationId());
+        logEntry.setProductId(contract.getProductId());
+        logEntry.setCustomerId(contract.getCustomerId());
+        logEntry.setOldRate(oldRate);
+        logEntry.setNewRate(newRate);
+        logEntry.setChangeType(RateChangeType.valueOf(request.getChangeType()));
+        logEntry.setReason(request.getReason());
+        logEntry.setOperator(operator);
+        InterestRateChangeLog savedLog = rateChangeLogRepository.save(logEntry);
+
+        contract.setInterestRate(newRate);
+        contract.setLatestRateChangeId(savedLog.getId());
+        LoanContract saved = contractRepository.save(contract);
+
+        application.setInterestRate(newRate);
+        application.setLatestRateChangeId(savedLog.getId());
+
+        eventBus.publish(new InterestRateChangedEvent(
+                contractId, contract.getApplicationId(), oldRate, newRate,
+                request.getChangeType(), request.getReason(), operator));
+
+        return saved;
     }
 
     private String generateContractNo() {

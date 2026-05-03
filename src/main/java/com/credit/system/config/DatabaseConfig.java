@@ -5,6 +5,7 @@ import javax.sql.DataSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Profile;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -21,6 +22,7 @@ public class DatabaseConfig {
 
     @Bean
     @Primary
+    @Profile("!test")
     public DataSource dataSource() {
         HikariConfig config = new HikariConfig();
 

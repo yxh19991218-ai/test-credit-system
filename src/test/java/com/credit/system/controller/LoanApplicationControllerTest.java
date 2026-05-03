@@ -197,6 +197,4 @@ class LoanApplicationControllerTest {
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         }
     }
-
-    }
 }

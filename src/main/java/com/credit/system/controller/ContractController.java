@@ -5,11 +5,13 @@ import com.credit.system.domain.enums.ContractStatus;
 import com.credit.system.dto.ApiResponse;
 import com.credit.system.dto.ContractRequest;
 import com.credit.system.dto.ContractResponse;
+import com.credit.system.dto.InterestRateChangeRequest;
 import com.credit.system.dto.mapper.ContractMapper;
 import com.credit.system.exception.ResourceNotFoundException;
 import com.credit.system.service.ContractService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -125,6 +127,16 @@ public class ContractController {
     public ResponseEntity<ApiResponse<String>> settleContract(@PathVariable Long id) {
         contractService.settleContract(id);
         return ResponseEntity.ok(ApiResponse.success("合同已结清"));
+    }
+
+    @PostMapping("/{id}/change-interest-rate")
+    @Operation(summary = "变更合同利率")
+    public ResponseEntity<ApiResponse<String>> changeInterestRate(
+            @PathVariable Long id,
+            @RequestBody @Valid InterestRateChangeRequest request,
+            @RequestParam(defaultValue = "SYSTEM") String operator) {
+        contractService.changeInterestRate(id, request, operator);
+        return ResponseEntity.ok(ApiResponse.success("利率变更成功"));
     }
 
     @GetMapping("/overdue")

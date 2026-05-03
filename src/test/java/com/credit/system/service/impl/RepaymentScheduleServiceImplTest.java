@@ -3,15 +3,16 @@ package com.credit.system.service.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,9 +20,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import com.credit.system.domain.LoanContract;
 import com.credit.system.domain.RepaymentPeriod;
@@ -37,23 +37,17 @@ import com.credit.system.repository.RepaymentScheduleRepository;
 import com.credit.system.service.calculator.RepaymentCalculator;
 import com.credit.system.service.calculator.RepaymentCalculatorRegistry;
 
-@ExtendWith(MockitoExtension.class)
 @DisplayName("RepaymentScheduleServiceImpl 单元测试")
 class RepaymentScheduleServiceImplTest {
 
-    @Mock
     private RepaymentScheduleRepository scheduleRepository;
 
-    @Mock
     private RepaymentPeriodRepository periodRepository;
 
-    @Mock
     private LoanContractRepository contractRepository;
 
-    @Mock
     private RepaymentCalculatorRegistry calculatorRegistry;
 
-    @Mock
     private RepaymentCalculator mockCalculator;
 
     private RepaymentScheduleServiceImpl scheduleService;
@@ -64,6 +58,28 @@ class RepaymentScheduleServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        scheduleRepository = mock(RepaymentScheduleRepository.class);
+        periodRepository = mock(RepaymentPeriodRepository.class);
+        contractRepository = mock(LoanContractRepository.class);
+        mockCalculator = new RepaymentCalculator() {
+            @Override
+            public RepaymentMethod getMethod() { return RepaymentMethod.EQUAL_INSTALLMENT; }
+
+            @Override
+            public void calculate(RepaymentPeriod period, BigDecimal principal,
+                                  BigDecimal monthlyRate, int term, int periodNo,
+                                  BigDecimal remaining) {
+                period.setTotalAmount(new BigDecimal("10661.85"));
+                period.setPrincipal(new BigDecimal("10000.00"));
+                period.setInterest(new BigDecimal("661.85"));
+            }
+        };
+        calculatorRegistry = new RepaymentCalculatorRegistry(Collections.emptyList()) {
+            @Override
+            public RepaymentCalculator getCalculator(RepaymentMethod method) {
+                return mockCalculator;
+            }
+        };
         scheduleService = new RepaymentScheduleServiceImpl(
                 scheduleRepository, periodRepository, contractRepository, calculatorRegistry);
 
@@ -92,7 +108,6 @@ class RepaymentScheduleServiceImplTest {
         for (int i = 1; i <= 12; i++) {
             RepaymentPeriod period = new RepaymentPeriod();
             period.setId((long) i);
-            period.setScheduleId(1L);
             period.setPeriodNo(i);
             period.setDueDate(LocalDate.of(2024, i, 1));
             period.setTotalAmount(new BigDecimal("10661.85"));
@@ -113,17 +128,6 @@ class RepaymentScheduleServiceImplTest {
         @DisplayName("根据合同ID应成功生成还款计划")
         void shouldGenerateScheduleFromContract() {
             given(contractRepository.findById(1L)).willReturn(Optional.of(sampleContract));
-            given(calculatorRegistry.getCalculator(RepaymentMethod.EQUAL_INSTALLMENT))
-                    .willReturn(mockCalculator);
-            given(mockCalculator.calculate(any(RepaymentPeriod.class), any(BigDecimal.class),
-                    any(BigDecimal.class), anyInt(), anyInt(), any(BigDecimal.class)))
-                    .willAnswer(invocation -> {
-                        RepaymentPeriod period = invocation.getArgument(0);
-                        period.setTotalAmount(new BigDecimal("10661.85"));
-                        period.setPrincipal(new BigDecimal("10000.00"));
-                        period.setInterest(new BigDecimal("661.85"));
-                        return null;
-                    });
             given(scheduleRepository.save(any(RepaymentSchedule.class)))
                     .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -283,17 +287,6 @@ class RepaymentScheduleServiceImplTest {
         void shouldModifyScheduleSuccessfully() {
             given(scheduleRepository.findById(1L)).willReturn(Optional.of(sampleSchedule));
             given(contractRepository.findById(1L)).willReturn(Optional.of(sampleContract));
-            given(calculatorRegistry.getCalculator(RepaymentMethod.EQUAL_INSTALLMENT))
-                    .willReturn(mockCalculator);
-            given(mockCalculator.calculate(any(RepaymentPeriod.class), any(BigDecimal.class),
-                    any(BigDecimal.class), anyInt(), anyInt(), any(BigDecimal.class)))
-                    .willAnswer(invocation -> {
-                        RepaymentPeriod period = invocation.getArgument(0);
-                        period.setTotalAmount(new BigDecimal("10661.85"));
-                        period.setPrincipal(new BigDecimal("10000.00"));
-                        period.setInterest(new BigDecimal("661.85"));
-                        return null;
-                    });
             given(scheduleRepository.save(any(RepaymentSchedule.class)))
                     .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -313,6 +306,69 @@ class RepaymentScheduleServiceImplTest {
             assertThatThrownBy(() -> scheduleService.modifySchedule(1L, 24, "展期", "ADMIN"))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("仅活跃的还款计划可以修改");
+        }
+    }
+
+    @Nested
+    @MockitoSettings(strictness = Strictness.LENIENT)
+    @DisplayName("利率变更 changeInterestRate")
+    class ChangeInterestRate {
+
+        @Test
+        @DisplayName("利率变更应重建还款计划，保留已还期次")
+        void shouldRebuildScheduleWithNewRate() {
+            for (int i = 0; i < 3; i++) {
+                RepaymentPeriod p = samplePeriods.get(i);
+                p.setStatus(RepaymentPeriodStatus.PAID);
+                p.setPaidDate(LocalDate.of(2024, i + 1, 1));
+                p.setPaidAmount(p.getTotalAmount());
+            }
+
+            given(scheduleRepository.findActiveByContractId(1L)).willReturn(Optional.of(sampleSchedule));
+            given(periodRepository.findByScheduleIdOrderByPeriodNoAsc(1L)).willReturn(samplePeriods);
+            given(contractRepository.findById(1L)).willReturn(Optional.of(sampleContract));
+            given(scheduleRepository.save(any(RepaymentSchedule.class)))
+                    .willAnswer(invocation -> invocation.getArgument(0));
+
+            RepaymentSchedule result = scheduleService.changeInterestRate(1L, new BigDecimal("0.10"), "利率优惠", "ADMIN");
+
+            assertThat(sampleSchedule.getStatus()).isEqualTo(ScheduleStatus.SUSPENDED);
+            assertThat(result.getAnnualRate()).isEqualByComparingTo(new BigDecimal("0.10"));
+            assertThat(result.getPreviousVersionId()).isEqualTo(1L);
+            assertThat(result.getTotalPeriods()).isEqualTo(12);
+            assertThat(result.getPeriods()).hasSize(12);
+            for (int i = 0; i < 3; i++) {
+                RepaymentPeriod p = result.getPeriods().get(i);
+                assertThat(p.getStatus()).isEqualTo(RepaymentPeriodStatus.PAID);
+                assertThat(p.getPeriodNo()).isEqualTo(i + 1);
+            }
+            for (int i = 3; i < 12; i++) {
+                assertThat(result.getPeriods().get(i).getStatus()).isEqualTo(RepaymentPeriodStatus.PENDING);
+            }
+        }
+
+        @Test
+        @DisplayName("非活跃还款计划不能变更利率")
+        void shouldNotChangeRateForInactiveSchedule() {
+            given(scheduleRepository.findActiveByContractId(1L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> scheduleService.changeInterestRate(1L, new BigDecimal("0.10"), "test", "ADMIN"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("还款计划不存在或已挂起");
+        }
+
+        @Test
+        @DisplayName("已全部还清的合同不能变更利率")
+        void shouldNotChangeRateWhenAllPaid() {
+            for (RepaymentPeriod p : samplePeriods) {
+                p.setStatus(RepaymentPeriodStatus.PAID);
+            }
+            given(scheduleRepository.findActiveByContractId(1L)).willReturn(Optional.of(sampleSchedule));
+            given(periodRepository.findByScheduleIdOrderByPeriodNoAsc(1L)).willReturn(samplePeriods);
+
+            assertThatThrownBy(() -> scheduleService.changeInterestRate(1L, new BigDecimal("0.10"), "test", "ADMIN"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("已全部还清");
         }
     }
 }

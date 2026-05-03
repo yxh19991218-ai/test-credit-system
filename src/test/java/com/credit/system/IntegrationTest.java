@@ -1,3 +1,5 @@
+package com.credit.system;
+
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.lang.annotation.*;

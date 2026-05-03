@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -420,13 +421,12 @@ class LoanApplicationServiceImplTest {
             given(applicationRepository.findById(1L)).willReturn(Optional.of(sampleApplication));
             given(applicationRepository.save(any(LoanApplication.class))).willAnswer(invocation -> invocation.getArgument(0));
             given(calculatorRegistry.getCalculator(RepaymentMethod.EQUAL_INSTALLMENT)).willReturn(repaymentCalculator);
-            given(repaymentCalculator.calculate(any(RepaymentPeriod.class), any(BigDecimal.class),
-                    any(BigDecimal.class), any(Integer.class), any(Integer.class), any(BigDecimal.class)))
-                    .willAnswer(invocation -> {
-                        RepaymentPeriod period = invocation.getArgument(0);
-                        period.setTotalAmount(new BigDecimal("8888.88"));
-                        return null;
-                    });
+            doAnswer(invocation -> {
+                RepaymentPeriod period = invocation.getArgument(0);
+                period.setTotalAmount(new BigDecimal("8888.88"));
+                return null;
+            }).when(repaymentCalculator).calculate(any(RepaymentPeriod.class), any(BigDecimal.class),
+                    any(BigDecimal.class), any(Integer.class), any(Integer.class), any(BigDecimal.class));
 
             applicationService.reviewApplication(1L, ApplicationStatus.APPROVED, "审核员",
                     "信用良好", new BigDecimal("100000"), 12, new BigDecimal("0.12"));
@@ -449,13 +449,12 @@ class LoanApplicationServiceImplTest {
             given(applicationRepository.findById(1L)).willReturn(Optional.of(sampleApplication));
             given(applicationRepository.save(any(LoanApplication.class))).willAnswer(invocation -> invocation.getArgument(0));
             given(calculatorRegistry.getCalculator(RepaymentMethod.EQUAL_INSTALLMENT)).willReturn(repaymentCalculator);
-            given(repaymentCalculator.calculate(any(RepaymentPeriod.class), any(BigDecimal.class),
-                    any(BigDecimal.class), any(Integer.class), any(Integer.class), any(BigDecimal.class)))
-                    .willAnswer(invocation -> {
-                        RepaymentPeriod period = invocation.getArgument(0);
-                        period.setTotalAmount(new BigDecimal("8888.88"));
-                        return null;
-                    });
+            doAnswer(invocation -> {
+                RepaymentPeriod period = invocation.getArgument(0);
+                period.setTotalAmount(new BigDecimal("8888.88"));
+                return null;
+            }).when(repaymentCalculator).calculate(any(RepaymentPeriod.class), any(BigDecimal.class),
+                    any(BigDecimal.class), any(Integer.class), any(Integer.class), any(BigDecimal.class));
 
             applicationService.reviewApplication(1L, ApplicationStatus.APPROVED, "审核员",
                     "信用良好", new BigDecimal("100000"), 12, new BigDecimal("0.12"));

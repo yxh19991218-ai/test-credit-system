@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collections;
@@ -16,36 +18,38 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.util.ReflectionTestUtils;
 import com.credit.system.domain.LoanContract;
 import com.credit.system.domain.enums.ContractStatus;
 import com.credit.system.dto.ApiResponse;
 import com.credit.system.dto.ContractRequest;
 import com.credit.system.dto.ContractResponse;
+import com.credit.system.dto.InterestRateChangeRequest;
+import com.credit.system.dto.mapper.ContractMapper;
 import com.credit.system.exception.ResourceNotFoundException;
 import com.credit.system.service.ContractService;
 
-@ExtendWith(MockitoExtension.class)
 @DisplayName("ContractController 单元测试")
 class ContractControllerTest {
 
-    @Mock
     private ContractService contractService;
-
-    @InjectMocks
+    private ContractMapper contractMapper;
     private ContractController contractController;
 
     private LoanContract sampleContract;
 
     @BeforeEach
     void setUp() {
+        contractService = mock(ContractService.class);
+        contractMapper = new ContractMapper();
+        contractController = new ContractController();
+        ReflectionTestUtils.setField(contractController, "contractService", contractService);
+        ReflectionTestUtils.setField(contractController, "contractMapper", contractMapper);
+
         sampleContract = new LoanContract();
         sampleContract.setId(1L);
         sampleContract.setContractNo("LOAN20260426001");
@@ -261,6 +265,31 @@ class ContractControllerTest {
                     contractController.settleContract(1L);
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/contracts/{id}/change-interest-rate")
+    class ChangeInterestRate {
+
+        @Test
+        @DisplayName("应成功变更利率并返回200")
+        void shouldChangeRateSuccessfully() {
+            given(contractService.changeInterestRate(
+                    eq(1L), any(InterestRateChangeRequest.class), eq("ADMIN")))
+                    .willReturn(sampleContract);
+
+            InterestRateChangeRequest request = new InterestRateChangeRequest();
+            request.setNewRate(new BigDecimal("0.10"));
+            request.setChangeType("MANUAL_ADJUSTMENT");
+            request.setReason("利率优惠");
+
+            ResponseEntity<ApiResponse<String>> response =
+                    contractController.changeInterestRate(1L, request, "ADMIN");
+
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody().getCode()).isEqualTo(200);
+            assertThat(response.getBody().getData()).isEqualTo("利率变更成功");
         }
     }
 

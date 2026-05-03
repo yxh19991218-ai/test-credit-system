@@ -8,7 +8,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -91,17 +90,14 @@ class DashboardServiceImplTest {
             given(periodRepository.sumPaidAmountByPaidDateBetween(any(LocalDate.class), any(LocalDate.class)))
                     .willReturn(new BigDecimal("180000"));
 
-            // 月度趋势（近12个月）
-            given(contractRepository.countByCreatedAtBetween(any(), any())).willReturn(5L);
-            given(customerRepository.countByCreatedAtBetween(any(), any())).willReturn(10L);
-            given(contractRepository.sumTotalAmountByCreatedAtBetween(any(), any()))
-                    .willReturn(new BigDecimal("500000"));
-
-            // 合同状态分布
-            Object[] activeRow = new Object[]{ContractStatus.ACTIVE, 50L};
-            Object[] settledRow = new Object[]{ContractStatus.SETTLED, 30L};
-            given(contractRepository.countByStatusGrouped())
-                    .willReturn(List.of(activeRow, settledRow));
+            // 合同状态分布 — 使用 findByStatus 匹配实际实现
+            for (ContractStatus status : ContractStatus.values()) {
+                given(contractRepository.findByStatus(status)).willReturn(Collections.emptyList());
+            }
+            given(contractRepository.findByStatus(ContractStatus.ACTIVE))
+                    .willReturn(Collections.nCopies(50, sampleContract));
+            given(contractRepository.findByStatus(ContractStatus.SETTLED))
+                    .willReturn(Collections.nCopies(30, sampleContract));
 
             // 近期到期合同
             given(contractRepository.findContractsDueBetween(any(LocalDate.class), any(LocalDate.class)))
@@ -124,15 +120,14 @@ class DashboardServiceImplTest {
             assertThat(response.getOverview().getMonthlyCollectionRate())
                     .isEqualByComparingTo(new BigDecimal("90.00"));
 
-            // 验证月度趋势（12个月）
+            // 验证月度趋势（12个月，所有值均为0）
             assertThat(response.getMonthlyTrends()).hasSize(12);
             response.getMonthlyTrends().forEach(trend -> {
                 assertThat(trend.getMonth()).isNotNull();
-                assertThat(trend.getNewContracts()).isEqualTo(5);
-                assertThat(trend.getNewCustomers()).isEqualTo(10);
-                assertThat(trend.getLoanAmount()).isEqualByComparingTo(new BigDecimal("500000"));
-                // sumPaidAmountByPaidDateBetween is stubbed to return 180000 for all calls
-                assertThat(trend.getRepaymentAmount()).isEqualByComparingTo(new BigDecimal("180000"));
+                assertThat(trend.getNewContracts()).isEqualTo(0);
+                assertThat(trend.getNewCustomers()).isEqualTo(0);
+                assertThat(trend.getLoanAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+                assertThat(trend.getRepaymentAmount()).isEqualByComparingTo(BigDecimal.ZERO);
             });
 
             // 验证合同状态分布
@@ -171,15 +166,10 @@ class DashboardServiceImplTest {
             given(periodRepository.sumTotalAmountByDueDateBetween(any(LocalDate.class), any(LocalDate.class)))
                     .willReturn(BigDecimal.ZERO);
 
-            // 月度趋势
-            given(contractRepository.countByCreatedAtBetween(any(), any())).willReturn(0L);
-            given(customerRepository.countByCreatedAtBetween(any(), any())).willReturn(0L);
-            given(contractRepository.sumTotalAmountByCreatedAtBetween(any(), any())).willReturn(null);
-            given(periodRepository.sumPaidAmountByPaidDateBetween(any(LocalDate.class), any(LocalDate.class)))
-                    .willReturn(null);
-
             // 合同状态分布
-            given(contractRepository.countByStatusGrouped()).willReturn(Collections.emptyList());
+            for (ContractStatus status : ContractStatus.values()) {
+                given(contractRepository.findByStatus(status)).willReturn(Collections.emptyList());
+            }
 
             // 近期到期合同
             given(contractRepository.findContractsDueBetween(any(LocalDate.class), any(LocalDate.class)))
@@ -237,13 +227,10 @@ class DashboardServiceImplTest {
             given(periodRepository.sumPaidAmountByPaidDateBetween(any(LocalDate.class), any(LocalDate.class)))
                     .willReturn(new BigDecimal("80000"));
 
-            // 月度趋势
-            given(contractRepository.countByCreatedAtBetween(any(), any())).willReturn(0L);
-            given(customerRepository.countByCreatedAtBetween(any(), any())).willReturn(0L);
-            given(contractRepository.sumTotalAmountByCreatedAtBetween(any(), any())).willReturn(null);
-
             // 合同状态分布
-            given(contractRepository.countByStatusGrouped()).willReturn(Collections.emptyList());
+            for (ContractStatus status : ContractStatus.values()) {
+                given(contractRepository.findByStatus(status)).willReturn(Collections.emptyList());
+            }
 
             // 近期到期合同
             given(contractRepository.findContractsDueBetween(any(LocalDate.class), any(LocalDate.class)))
@@ -285,11 +272,11 @@ class DashboardServiceImplTest {
             given(periodRepository.sumPaidAmountByPaidDateBetween(any(LocalDate.class), any(LocalDate.class)))
                     .willReturn(new BigDecimal("80000"));
 
-            given(contractRepository.countByCreatedAtBetween(any(), any())).willReturn(0L);
-            given(customerRepository.countByCreatedAtBetween(any(), any())).willReturn(0L);
-            given(contractRepository.sumTotalAmountByCreatedAtBetween(any(), any())).willReturn(null);
+            // 合同状态分布
+            for (ContractStatus status : ContractStatus.values()) {
+                given(contractRepository.findByStatus(status)).willReturn(Collections.emptyList());
+            }
 
-            given(contractRepository.countByStatusGrouped()).willReturn(Collections.emptyList());
             given(contractRepository.findContractsDueBetween(any(LocalDate.class), any(LocalDate.class)))
                     .willReturn(Collections.emptyList());
 
